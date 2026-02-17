@@ -4,11 +4,11 @@ import logouit from '../../assets/logouit.png'
 
 const DocumentCard = () => {
   return (
-    <div className='pt-4'>
+    <div className='pt-4 pl-4'>
       <div className='bg-white rounded-lg shadow-md overflow-hidden w-64 border-2 border-gray-400 hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer'>
         <div className='relative h-32 bg-gradient-to-r from-orange-400 to-pink-500 flex items-center justify-center'>
           <img src={pic2} alt="course" className='w-full h-full object-cover' />
-          <div className='absolute top-2 right-2 bg-white px-2 py-0.5 rounded-full text-xs font-medium'>
+          <div className='absolute top-2 right-2 bg-white px-2 py-0.5 rounded-full text-xs font-medium border-2 border-gray-400'>
             Preview
           </div>
         </div>
