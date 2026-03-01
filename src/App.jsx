@@ -1,8 +1,13 @@
 import React from 'react'
-import DocumentCard from './components/DocumentCard'
+import Admin from './pages/Admin/Admin.jsx'
+import Header from './components/Header/Header'
 
 function App() {
-        
+        return (
+                <div>
+                        <Admin />
+                </div>
+        )
         }
 
 

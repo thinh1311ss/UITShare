@@ -16,7 +16,7 @@ const Header = () =>{
     return(
         <div className="w-full h-22 bg-gray-800 text-white flex items-center justify-between px-10">
             <div className="">
-                <img src="/src/assets/logo.png" alt="Logo" className="h-16 w-35 object-cover flex items-center justify-center mt-2.5 flex-shrink-0" />
+                <img src="../public/UIT-Share-Logo-2.svg" alt="Logo" className="h-15 w-15 object-contain flex items-center justify-center mt-2.5 flex-shrink-0" />
             </div>
 
             <div className="flex-1 mx-6 max-w-2xl">
