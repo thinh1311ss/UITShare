@@ -2,7 +2,7 @@ import { FileText, Users, Share2 } from "lucide-react";
 
 export default function Hero() {
   return (
-    <section className="relative min-h-screen bg-[#050816] text-white flex flex-col items-center justify-center px-6 overflow-hidden">
+    <section className="relative min-h-screen pt-32 pb-20 bg-[#050816] text-white flex flex-col items-center px-6 overflow-hidden">
 
       {/* glow background */}
       <div className="absolute w-150 h-150 bg-purple-600/30 blur-[180px] -top-50 -left-50" />
@@ -31,12 +31,12 @@ export default function Hero() {
 
         {/* BUTTONS */}
         <div className="mt-8 flex justify-center gap-4 flex-wrap">
-          <button className="bg-purple-500 hover:bg-purple-600 px-6 py-3 rounded-lg font-medium transition">
-            Upload Document
+          <button className="w-48 bg-purple-500 hover:bg-purple-600 px-6 py-3 rounded-lg font-medium transition">
+            Tải lên tài liệu
           </button>
 
-          <button className="bg-white text-black px-6 py-3 rounded-lg font-medium hover:bg-gray-200 transition">
-            Explore Documents
+          <button className="w-48 bg-white text-black px-6 py-3 rounded-lg font-medium hover:bg-gray-200 transition">
+            Khám phá tài liệu
           </button>
         </div>
 
