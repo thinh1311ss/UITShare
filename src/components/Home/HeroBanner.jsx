@@ -5,8 +5,8 @@ export default function Hero() {
     <section className="relative min-h-screen bg-[#050816] text-white flex flex-col items-center justify-center px-6 overflow-hidden">
 
       {/* glow background */}
-      <div className="absolute w-[600px] h-[600px] bg-purple-600/30 blur-[180px] top-[-200px] left-[-200px]" />
-      <div className="absolute w-[600px] h-[600px] bg-blue-500/30 blur-[180px] bottom-[-200px] right-[-200px]" />
+      <div className="absolute w-150 h-150 bg-purple-600/30 blur-[180px] -top-50 -left-50" />
+      <div className="absolute w-150 h-150 bg-blue-500/30 blur-[180px] -bottom-50 -right-50" />
 
       {/* HERO TEXT */}
       <div className="relative text-center max-w-4xl">
@@ -20,7 +20,7 @@ export default function Hero() {
         <h1 className="text-5xl md:text-6xl font-bold leading-tight">
           Học liệu số
           <br />
-          <span className="bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 text-transparent bg-clip-text">
+          <span className="bg-linear-to-r from-purple-400 via-blue-400 to-cyan-400 text-transparent bg-clip-text">
             Dành cho sinh viên UIT
           </span>
         </h1>
