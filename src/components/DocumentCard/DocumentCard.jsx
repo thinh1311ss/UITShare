@@ -1,8 +1,10 @@
-import React from 'react'
+import { useNavigate } from 'react-router'
 import pic2 from '../../assets/pic2.jpg'
 import logouit from '../../assets/logouit.png'
 
-const DocumentCard = () => {
+const DocumentCard = ({ id = 1 }) => {
+  const navigate = useNavigate()
+
   return (
     <div className='pt-4 pl-4'>
       <div className='bg-linear-to-br from-[#12121f] to-[#1a1a2e] rounded-xl shadow-md overflow-hidden w-64 border border-white/10 hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer'>
@@ -64,7 +66,10 @@ const DocumentCard = () => {
             <span className='text-xs text-purple-500 font-medium'>ETH</span>
           </div>
 
-          <button className='bg-linear-to-r from-purple-600 to-indigo-600 hover:opacity-90 active:scale-95 transition-all duration-150 text-black text-xs font-semibold px-4 py-1.5 rounded-lg shadow-sm'>
+          <button
+            onClick={() => navigate(`/document/${id}`)}
+            className='bg-linear-to-r from-purple-600 to-indigo-600 hover:opacity-90 active:scale-95 transition-all duration-150 text-white text-xs font-semibold px-4 py-1.5 rounded-lg shadow-sm cursor-pointer'
+          >
             Xem ngay
           </button>
 
