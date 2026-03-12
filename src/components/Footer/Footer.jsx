@@ -1,6 +1,7 @@
 import React from 'react';
 import { FaTelegram, FaDiscord, FaXTwitter, FaFacebookF, FaTiktok, FaYoutube, FaThreads, FaInstagram } from 'react-icons/fa6';
-export default function Footer() {
+
+export default function Footer({ onNavigate }) {
   return <footer className="bg-[#0b0f19] text-gray-300 py-10 px-6 md:px-12 border-t border-gray-800 mt-auto">
       <div className="max-w-7xl ml-0 mr-auto">
         {/* Top section: Logo and Socials */}
@@ -40,11 +41,11 @@ export default function Footer() {
 
         {/* Links */}
         <div className="flex flex-wrap gap-6 mb-6 text-sm font-medium">
-          <a href="#" className="hover:text-white transition-colors">Hỏi-Đáp</a>
-          <a href="#" className="hover:text-white transition-colors">Chính sách bảo mật</a>
-          <a href="#" className="hover:text-white transition-colors">Điều khoản sử dụng</a>
-          <a href="#" className="hover:text-white transition-colors">Giới thiệu</a>
-          <a href="#" className="hover:text-white transition-colors">Liên hệ</a>
+          <button onClick={() => onNavigate && onNavigate('faq')} className="hover:text-white transition-colors">Hỏi-Đáp</button>
+          <button onClick={() => onNavigate && onNavigate('privacy')} className="hover:text-white transition-colors">Chính sách bảo mật</button>
+          <button onClick={() => onNavigate && onNavigate('home')} className="hover:text-white transition-colors">Điều khoản sử dụng</button>
+          <button onClick={() => onNavigate && onNavigate('home')} className="hover:text-white transition-colors">Giới thiệu</button>
+          <button onClick={() => onNavigate && onNavigate('contact')} className="hover:text-white transition-colors">Liên hệ</button>
         </div>
 
         {/* Description */}

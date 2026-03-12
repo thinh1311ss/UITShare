@@ -3,7 +3,7 @@ import { Phone, Mail, MapPin } from "lucide-react";
 import Header from "../components/Header/Header";
 import Footer from "../components/Footer/Footer";
 
-export default function ContactUs() {
+export default function ContactUs({onNavigate}) {
   return (
     <div className="min-h-screen bg-white font-sans flex flex-col">
       <Header />
@@ -121,7 +121,7 @@ export default function ContactUs() {
         </div>
       </div>
       <div className="w-full h-24 sm:h-32 bg-[#1c1e2f]"></div>
-      <Footer />
+      <Footer onNavigate={onNavigate} />
     </div>
   );
 }

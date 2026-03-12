@@ -176,7 +176,7 @@ export default function FAQ({ onNavigate }) {
       </div>
       <div className="w-full h-24 sm:h-32 bg-[#1c1e2f]"></div>
 
-      <Footer />
+      <Footer onNavigate={onNavigate} />
     </div>
   );
 }
