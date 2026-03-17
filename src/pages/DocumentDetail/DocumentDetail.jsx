@@ -1,9 +1,12 @@
 import { useParams, useNavigate } from "react-router";
-import { ArrowLeft, Copy, ExternalLink, ShoppingCart, User, FileText } from "lucide-react";
+import { ArrowLeft, ExternalLink, ShoppingCart, User, FileText } from "lucide-react";
 import { useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import FeaturedDocuments from "../../components/Home/FeaturedDocument";
 import DocumentReviews from "../../components/DocumentReviews/DocumentReviews";
+import DocumentInfo from "../../components/DocumentInfo/DocumentInfo";
+import NFTInfo from "../../components/NFTInfo/NFTInfo";
+import PDFPreviewModal from "../../components/PDFPreviewModal/PDFPreviewModal";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
@@ -41,6 +44,7 @@ export default function DocumentDetail() {
   const doc = MOCK_DOCUMENT;
 
   const [numPages, setNumPages] = useState(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   function onLoadSuccess({ numPages }) {
     setNumPages(numPages);
@@ -71,92 +75,9 @@ export default function DocumentDetail() {
 
           {/* Left */}
           <div className="lg:col-span-2 flex flex-col gap-6">
-
-            {/* Document info */}
-            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-6">
-              <div className="flex flex-wrap gap-2 mb-4">
-                {doc.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="text-xs px-3 py-1 rounded-full bg-purple-500/20 border border-purple-400/30 text-purple-300"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-
-              <p className="text-cyan-400 text-sm font-semibold mb-5">{doc.school}</p>
-
-              <div className="flex items-center gap-6 flex-wrap mb-5">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-linear-to-br from-purple-400 to-blue-500 flex items-center justify-center text-sm font-bold text-white">
-                    {doc.authorAvatar}
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Tác giả</p>
-                    <p className="text-sm font-semibold text-white">{doc.author}</p>
-                  </div>
-                </div>
-                <div className="w-px h-8 bg-white/10" />
-                <div>
-                  <p className="text-xs text-gray-500">Số trang</p>
-                  <p className="text-sm font-semibold text-white">{doc.pages} trang</p>
-                </div>
-                <div className="w-px h-8 bg-white/10" />
-                <div>
-                  <p className="text-xs text-gray-500">Năm học</p>
-                  <p className="text-sm font-semibold text-white">{doc.year}</p>
-                </div>
-              </div>
-
-              <p className="text-gray-400 text-sm leading-relaxed">{doc.description}</p>
-            </div>
-
-            {/* NFT Info */}
-            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-6">
-              <div className="flex items-center gap-2 mb-5">
-                <div className="w-7 h-7 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                  <svg className="w-3.5 h-3.5 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                  </svg>
-                </div>
-                <h3 className="text-base font-bold text-white">Thông tin NFT</h3>
-              </div>
-
-              <div className="grid grid-cols-2 gap-5">
-                {[
-                  { label: "Giá",        value: `${doc.nft.price} ${doc.nft.currency}`, highlight: true },
-                  { label: "Token ID",   value: doc.nft.tokenId },
-                  { label: "Blockchain", value: doc.nft.chain },
-                  { label: "Owner",      value: doc.nft.owner },
-                ].map((item) => (
-                  <div key={item.label}>
-                    <p className="text-xs text-gray-500 mb-1">{item.label}</p>
-                    <p className={`text-sm font-semibold ${item.highlight ? "text-purple-400 text-lg" : "text-white"}`}>
-                      {item.value}
-                    </p>
-                  </div>
-                ))}
-                <div className="col-span-2">
-                  <p className="text-xs text-gray-500 mb-1">Contract Address</p>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-white font-mono">
-                      {doc.nft.contractAddress.slice(0, 20)}...
-                    </p>
-                    <button
-                      onClick={() => navigator.clipboard.writeText(doc.nft.contractAddress)}
-                      className="text-white/40 hover:text-cyan-400 transition-colors cursor-pointer"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Reviews */}
+            <DocumentInfo doc={doc} reviewCount={doc.reviews} />
+            <NFTInfo nft={doc.nft} />
             <DocumentReviews />
-
           </div>
 
           {/* Right */}
@@ -165,7 +86,7 @@ export default function DocumentDetail() {
             {/* Buy card with PDF Preview */}
             <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-6">
 
-              {/* PDF preview */}
+              {/* PDF preview (thumbnail) */}
               <div className="w-full h-80 overflow-y-auto rounded-lg mb-5 bg-black/40 p-3 flex flex-col items-center gap-4">
                 <Document
                   file="/sample.pdf"
@@ -203,7 +124,11 @@ export default function DocumentDetail() {
                 <ShoppingCart className="w-4 h-4" />
                 Mua tài liệu ngay
               </button>
-              <button className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold py-3 rounded-lg transition cursor-pointer flex items-center justify-center gap-2">
+
+              <button
+                onClick={() => setShowPreview(true)}
+                className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold py-3 rounded-lg transition cursor-pointer flex items-center justify-center gap-2"
+              >
                 <ExternalLink className="w-4 h-4" />
                 Xem trước tài liệu
               </button>
@@ -251,6 +176,14 @@ export default function DocumentDetail() {
         />
 
       </div>
+
+      {/* PDF Preview Modal */}
+      {showPreview && (
+        <PDFPreviewModal
+          file="/sample.pdf"
+          onClose={() => setShowPreview(false)}
+        />
+      )}
     </section>
   );
 }
