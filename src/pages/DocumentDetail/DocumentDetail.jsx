@@ -307,6 +307,7 @@ export default function DocumentDetail() {
           </div>
         </div>
 
+
       </div>
     </section>
   );
