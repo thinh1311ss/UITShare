@@ -74,8 +74,6 @@ export default function FAQ({ onNavigate }) {
 
   return (
     <div className="min-h-screen bg-white font-sans flex flex-col">
-      <Header />
-
       <div className="flex-1">
         <div className="bg-[#1c1e2f] pt-40 pb-20 px-4 text-center">
           <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 text-transparent bg-clip-text">
@@ -175,8 +173,6 @@ export default function FAQ({ onNavigate }) {
         </div>
       </div>
       <div className="w-full h-24 sm:h-32 bg-[#1c1e2f]"></div>
-
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 }

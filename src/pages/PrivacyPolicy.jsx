@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from "react";
 import Header from "../components/Header/Header";
 import Footer from "../components/Footer/Footer";
-import {Info, Database, Target, Shield, Share2, UserCheck, Cookie, RefreshCw, Mail} from "lucide-react";
+import {
+  Info,
+  Database,
+  Target,
+  Shield,
+  Share2,
+  UserCheck,
+  Cookie,
+  RefreshCw,
+  Mail,
+} from "lucide-react";
 
 const policyData = [
   {
@@ -74,8 +84,6 @@ export default function PrivacyPolicy({ onNavigate }) {
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] font-sans flex flex-col">
-      <Header />
-
       <div className="flex-1">
         {/* Hero Banner */}
         <div className="bg-[#1c1e2f] pt-40 pb-20 px-4 text-center">
@@ -136,8 +144,6 @@ export default function PrivacyPolicy({ onNavigate }) {
         </div>
       </div>
       <div className="w-full h-24 sm:h-32 bg-[#1c1e2f]"></div>
-
-      <Footer onNavigate={onNavigate}  />
     </div>
   );
 }

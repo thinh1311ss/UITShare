@@ -3,11 +3,9 @@ import { Phone, Mail, MapPin } from "lucide-react";
 import Header from "../components/Header/Header";
 import Footer from "../components/Footer/Footer";
 
-export default function ContactUs({onNavigate}) {
+export default function ContactUs({ onNavigate }) {
   return (
     <div className="min-h-screen bg-white font-sans flex flex-col">
-      <Header />
-
       {/* Main Content */}
       <div className="flex-1">
         <div className="bg-[#1c1e2f] pt-40 pb-40 px-4 text-center">
@@ -26,7 +24,7 @@ export default function ContactUs({onNavigate}) {
               </div>
               <div>
                 <h3 className="font-bold text-xs text-gray-500 tracking-wider uppercase mb-1">
-                    Gọi cho chúng tôi
+                  Gọi cho chúng tôi
                 </h3>
                 <p className="font-semibold text-gray-900">+84 363 363 369</p>
               </div>
@@ -38,7 +36,7 @@ export default function ContactUs({onNavigate}) {
               </div>
               <div>
                 <h3 className="font-bold text-xs text-gray-500 tracking-wider uppercase mb-1">
-                    Email 
+                  Email
                 </h3>
                 <p className="font-semibold text-gray-900">
                   support@uitshare.com
@@ -52,12 +50,12 @@ export default function ContactUs({onNavigate}) {
               </div>
               <div>
                 <h3 className="font-bold text-xs text-gray-500 tracking-wider uppercase mb-1">
-                    Địa chỉ
+                  Địa chỉ
                 </h3>
                 <p className="font-semibold text-gray-900">
-                  Trường ĐH Công nghệ Thông tin 
+                  Trường ĐH Công nghệ Thông tin
                   <br />
-                 Thủ Đức, TP.HCM 
+                  Thủ Đức, TP.HCM
                 </p>
               </div>
             </div>
@@ -76,9 +74,9 @@ export default function ContactUs({onNavigate}) {
                 Cùng nhau phát triển cộng đồng học tập
               </h2>
               <p className="text-gray-500 leading-relaxed">
-                Chia sẻ ý tưởng hoặc thắc mắc của bạn với UITShare.
-                Nếu bạn cần hỗ trợ về tài khoản, tài liệu hoặc hợp tác, hãy gửi tin nhắn cho chúng tôi.
-                Chúng tôi luôn sẵn sàng hỗ trợ sinh viên UIT.
+                Chia sẻ ý tưởng hoặc thắc mắc của bạn với UITShare. Nếu bạn cần
+                hỗ trợ về tài khoản, tài liệu hoặc hợp tác, hãy gửi tin nhắn cho
+                chúng tôi. Chúng tôi luôn sẵn sàng hỗ trợ sinh viên UIT.
               </p>
             </div>
 
@@ -121,7 +119,6 @@ export default function ContactUs({onNavigate}) {
         </div>
       </div>
       <div className="w-full h-24 sm:h-32 bg-[#1c1e2f]"></div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 }
