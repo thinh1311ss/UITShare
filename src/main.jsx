@@ -8,6 +8,12 @@ import Login from "./pages/Auth/Login.jsx";
 import Register from "./pages/Auth/Register.jsx";
 import ForgotPassword from "./pages/Auth/ForgotPassword.jsx";
 import Admin from "./pages/Admin/Admin.jsx";
+import FAQ from "./pages/FAQ.jsx";
+import Privacy from "./pages/PrivacyPolicy.jsx";
+import Contact from "./pages/Contact.jsx";  
+import TermsOfService from "./pages/TermsOfService.jsx";
+import AboutUs from "./pages/AboutUs.jsx";
+import DocumentPage from "./pages/DocumentPage.jsx";
 
 const router = createBrowserRouter([
   {
@@ -37,6 +43,30 @@ const router = createBrowserRouter([
       {
         path: "admin",
         element: <Admin />,
+      },
+      {
+        path: "faq",
+        element: <FAQ />,
+      },
+      {
+        path: "privacy",
+        element: <Privacy />,
+      },
+      {
+        path: "contact",
+        element: <Contact />,
+      },
+      {
+        path: "terms",
+        element: <TermsOfService />,
+      },  
+      {
+        path: "about",
+        element: <AboutUs />, 
+      }, 
+      {
+        path: "Document*",
+        element: <DocumentPage />,
       },
     ],
   },
