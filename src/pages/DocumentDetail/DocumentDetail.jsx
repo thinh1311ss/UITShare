@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router";
-import { ArrowLeft, ExternalLink, ShoppingCart, User, FileText } from "lucide-react";
+import { ArrowLeft, ExternalLink, ShoppingCart, User, FileText, Check } from "lucide-react";
 import { useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import FeaturedDocuments from "../../components/Home/FeaturedDocument";
@@ -7,6 +7,7 @@ import DocumentReviews from "../../components/DocumentReviews/DocumentReviews";
 import DocumentInfo from "../../components/DocumentInfo/DocumentInfo";
 import NFTInfo from "../../components/NFTInfo/NFTInfo";
 import PDFPreviewModal from "../../components/PDFPreviewModal/PDFPreviewModal";
+import { useCart } from "../../context/CartContext";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
@@ -46,6 +47,9 @@ export default function DocumentDetail() {
   const [numPages, setNumPages] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
 
+  const { cartItems, addToCart, removeFromCart } = useCart();
+  const isInCart = cartItems.some((item) => item.id === doc.id);
+
   function onLoadSuccess({ numPages }) {
     setNumPages(numPages);
   }
@@ -83,7 +87,7 @@ export default function DocumentDetail() {
           {/* Right */}
           <div className="lg:sticky lg:top-24 flex flex-col gap-4 self-start">
 
-            {/* Buy card with PDF Preview */}
+            {/* Buy card */}
             <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-6">
 
               {/* PDF preview (thumbnail) */}
@@ -120,11 +124,32 @@ export default function DocumentDetail() {
               </div>
               <p className="text-xs text-gray-500 mb-5">≈ ${doc.nft.priceUsd} USD</p>
 
-              <button className="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold py-3 rounded-lg transition cursor-pointer flex items-center justify-center gap-2 mb-3">
-                <ShoppingCart className="w-4 h-4" />
-                Mua tài liệu ngay
-              </button>
+              {/* Buy + Cart row */}
+              <div className="flex gap-2 mb-3">
+                {/* Mua - chiếm nhiều hơn */}
+                <button className="flex-1 bg-purple-500 hover:bg-purple-600 text-white font-semibold py-3 rounded-lg transition cursor-pointer flex items-center justify-center gap-2">
+                  <ShoppingCart className="w-4 h-4" />
+                  Mua tài liệu ngay
+                </button>
 
+                {/* Toggle giỏ hàng */}
+                <button
+                  onClick={() => isInCart ? removeFromCart(doc.id) : addToCart(doc)}
+                  title={isInCart ? "Xóa khỏi giỏ hàng" : "Thêm vào giỏ hàng"}
+                  className={`px-4 py-3 rounded-lg border transition cursor-pointer flex items-center justify-center
+                    ${isInCart
+                      ? "bg-green-500/10 border-green-500/40 text-green-400"
+                      : "bg-white/5 hover:bg-white/10 border-white/10 text-white"
+                    }`}
+                >
+                  {isInCart
+                    ? <Check className="w-5 h-5" />
+                    : <ShoppingCart className="w-5 h-5" />
+                  }
+                </button>
+              </div>
+
+              {/* Preview button */}
               <button
                 onClick={() => setShowPreview(true)}
                 className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold py-3 rounded-lg transition cursor-pointer flex items-center justify-center gap-2"
@@ -170,19 +195,12 @@ export default function DocumentDetail() {
         </div>
 
         {/* Related */}
-        <FeaturedDocuments
-          badge="✦ Liên quan"
-          title="Tài liệu cùng chủ đề"
-        />
-
+        <FeaturedDocuments badge="✦ Liên quan" title="Tài liệu cùng chủ đề" />
       </div>
 
       {/* PDF Preview Modal */}
       {showPreview && (
-        <PDFPreviewModal
-          file="/sample.pdf"
-          onClose={() => setShowPreview(false)}
-        />
+        <PDFPreviewModal file="/sample.pdf" onClose={() => setShowPreview(false)} />
       )}
     </section>
   );
