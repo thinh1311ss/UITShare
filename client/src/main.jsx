@@ -15,6 +15,15 @@ import TermsOfService from "./pages/TermsOfService.jsx";
 import AboutUs from "./pages/AboutUs.jsx";
 import DocumentPage from "./pages/DocumentPage.jsx";
 import SearchResultsPage from "./pages/SearchResultPage.jsx";
+import ProfileLayout from "./pages/Profile/ProfileLayout.jsx";
+import Financials from "./pages/Profile/Financials.jsx";
+import PersonalInfo from "./pages/Profile/PersonalInfo.jsx";
+import PurchaseHistory from "./pages/Profile/PurchaseHistory.jsx";
+import ReviewsManagement from "./pages/Profile/ReviewsManagement.jsx";
+import UploadedDocs from "./pages/Profile/UploadedDocs.jsx";
+import AuthorDetail from "./pages/Author/AuthorDetail.jsx";
+import UploadPage from "./pages/Document/UploadPage.jsx";
+import DonationsReceived from "./pages/Profile/DonationsReceived.jsx";
 
 const router = createBrowserRouter([
   {
@@ -72,6 +81,40 @@ const router = createBrowserRouter([
       {
         path: "search",
         element: <SearchResultsPage />,
+      },
+      {
+        path: "profile",
+        element: <ProfileLayout />,
+        children: [
+          {
+            index: true,
+            element: <PersonalInfo />,
+          },
+          {
+            path: "financials",
+            element: <Financials />,
+          },
+          {
+            path: "purchaseHistory",
+            element: <PurchaseHistory />,
+          },
+          {
+            path: "reviewsManagement",
+            element: <ReviewsManagement />,
+          },
+          {
+            path: "uploadedDocs",
+            element: <UploadedDocs />,
+          },
+          {
+            path: "donatedReceived",
+            element: <DonationsReceived />,
+          },
+        ],
+      },
+      {
+        path: "upload",
+        element: <UploadPage />,
       },
     ],
   },
