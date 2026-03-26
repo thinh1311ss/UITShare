@@ -23,22 +23,15 @@ describe("UITShare Marketplace Hardened Suite", function () {
     );
   });
 
-  /**
-   * @dev Hàm Mint tự thích ứng với signature của UITShareDocs
-   */
   async function mintAndGetId(signer, amount, uri) {
-    // Tìm tất cả các hàm có tên là 'mint' trong contract
     const mintFn = nft.interface.fragments.find((f) => f.name === "mint");
     let tx;
 
     if (mintFn.inputs.length === 4) {
-      // Trường hợp: mint(address to, uint256 amount, string uri, bytes data)
       tx = await nft.connect(signer).mint(signer.address, amount, uri, "0x");
     } else if (mintFn.inputs.length === 3) {
-      // Trường hợp: mint(uint256 amount, string uri, bytes data) -> thường mặc định cho msg.sender
       tx = await nft.connect(signer).mint(amount, uri, "0x");
     } else {
-      // Nếu vẫn lỗi, hãy kiểm tra lại file UITShareDocs.sol xem bạn đặt tên hàm là gì
       throw new Error(
         `Signature hàm mint không khớp. Số lượng tham số tìm thấy: ${mintFn.inputs.length}`,
       );
@@ -46,7 +39,6 @@ describe("UITShare Marketplace Hardened Suite", function () {
 
     const receipt = await tx.wait();
 
-    // Lấy ID từ event TransferSingle (Topic hash an toàn cho Ethers v6)
     const transferSingleTopic =
       nft.interface.getEvent("TransferSingle").topicHash;
     const log = receipt.logs.find((l) => l.topics[0] === transferSingleTopic);
