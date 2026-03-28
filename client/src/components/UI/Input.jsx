@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FaEye, FaEyeSlash } from "react-icons/fa6"; 
+import { FaEye, FaEyeSlash } from "react-icons/fa6";
 
 const Input = ({ type, placeholder, className, ...rest }) => {
   const [showPassword, setShowPassword] = useState(false);
@@ -11,7 +11,19 @@ const Input = ({ type, placeholder, className, ...rest }) => {
       <input
         type={inputType}
         placeholder={placeholder}
-        className={`w-full px-4 py-3 pr-10 rounded-xl border border-white/20 bg-white/5 focus:bg-white/10 focus:border-purple-400 focus:ring-1 focus:ring-purple-400/50 outline-none transition-all placeholder:text-gray-400 text-sm text-white ${className}`}
+        className={`w-full px-4 py-3 pr-10 rounded-xl 
+  border border-purple-400 
+text-black
+placeholder:text-gray-400 
+text-sm 
+outline-none 
+focus:bg-white/10 
+focus:border-2 focus:border-purple-400 
+focus:ring-0
+transition-colors 
+duration-300
+
+${className}`}
         {...rest}
       />
 
