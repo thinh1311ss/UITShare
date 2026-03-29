@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { HiOutlineShoppingCart, HiUser, HiX, HiMenu } from "react-icons/hi";
 import SearchBar from "./SearchBar";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useCart } from "../../context/CartContext";
+import { jwtDecode } from "jwt-decode";
 
 const NAV_LINKS = [
   { label: "Trang chủ", href: "/" },
@@ -20,7 +21,19 @@ const Header = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { cartItems, removeFromCart } = useCart();
 
-  // Đóng drawer khi resize lên desktop
+  const navigate = useNavigate();
+
+  let userId = null;
+
+  if (accessToken && accessToken !== "undefined") {
+    try {
+      const decodePayload = jwtDecode(accessToken);
+      userId = decodePayload?._id;
+    } catch (error) {
+      console.log("Invalid token");
+    }
+  }
+
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth >= 1024) setDrawerOpen(false);
@@ -169,8 +182,8 @@ const Header = () => {
                             <ul className="py-2 text-sm text-white">
                               <li>
                                 <Link
-                                  to="/profile"
-                                  className="block px-4 py-2 transition hover:bg-white/5"
+                                  to={`/profile/${userId}`}
+                                  className="block cursor-pointer px-4 py-2 transition hover:bg-white/5"
                                 >
                                   Trang cá nhân
                                 </Link>
@@ -180,9 +193,9 @@ const Header = () => {
                                 <button
                                   onClick={() => {
                                     localStorage.removeItem("access_token");
-                                    window.location.reload(); // cách nhanh
+                                    navigate("/login");
                                   }}
-                                  className="w-full px-4 py-2 text-left transition hover:bg-white/5 hover:text-red-400"
+                                  className="w-full cursor-pointer px-4 py-2 text-left transition hover:bg-white/5 hover:text-red-400"
                                 >
                                   Đăng xuất
                                 </button>
