@@ -16,6 +16,8 @@ const Header = () => {
   const [accessToken, setAccessToken] = useState(
     localStorage.getItem("access_token"),
   );
+  let decodePayload = null;
+
   const [cartHovered, setCartHovered] = useState(false);
   const [userHovered, setUserHovered] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -27,7 +29,7 @@ const Header = () => {
 
   if (accessToken && accessToken !== "undefined") {
     try {
-      const decodePayload = jwtDecode(accessToken);
+      decodePayload = jwtDecode(accessToken);
       userId = decodePayload?._id;
     } catch (error) {
       console.log("Invalid token");
@@ -188,6 +190,18 @@ const Header = () => {
                                   Trang cá nhân
                                 </Link>
                               </li>
+
+                              {decodePayload.role === "admin" ? (
+                                <li>
+                                  <Link to="/admin">
+                                    <button className="w-full cursor-pointer px-4 py-2 text-left transition hover:bg-white/5 hover:text-red-400">
+                                      Quản lý
+                                    </button>
+                                  </Link>
+                                </li>
+                              ) : (
+                                <div></div>
+                              )}
 
                               <li>
                                 <button
