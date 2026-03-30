@@ -28,6 +28,12 @@ router.get(
 );
 
 router.put(
+  "/updateWallet/:userId",
+  [AuthMiddleware.isAuthentication],
+  personalController.updateWallet,
+);
+
+router.put(
   "/updateUserInfo/:userId",
   [AuthMiddleware.isAuthentication],
   upload.fields([

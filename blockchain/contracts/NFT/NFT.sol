@@ -1,147 +1,166 @@
 // SPDX-License-Identifier: UNLICENSED
-<<<<<<< HEAD
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-
-contract DocumentNFT is ERC1155, Ownable {
-
-    uint256 private _tokenIdCounter;
-    string private _baseTokenURI;
-
-    // lưu creator cho marketplace (donate)
-    mapping(uint256 => address) public creators;
-
-    constructor()
-        ERC1155("")
-    {}
-
-    // ===== MINT =====
-    function mint(address to_, uint256 amount_) 
-        public 
-        onlyOwner 
-        returns (uint256) 
-    {
-        _tokenIdCounter++;
-        uint256 tokenId = _tokenIdCounter;
-
-        _mint(to_, tokenId, amount_, "");
-
-        // lưu người tạo
-        creators[tokenId] = msg.sender;
-
-        return tokenId;
-    }
-
-    // ===== URI =====
-    function uri(uint256 tokenId) public view override returns (string memory) {
-        return string(abi.encodePacked(_baseTokenURI, _toString(tokenId), ".json"));
-    }
-
-    function updateBaseTokenURI(string memory baseTokenURI_) 
-        public 
-        onlyOwner 
-    {
-        _baseTokenURI = baseTokenURI_;
-    }
-
-    // ===== MARKETPLACE SUPPORT =====
-    function getCreator(uint256 tokenId) external view returns (address) {
-        return creators[tokenId];
-    }
-
-    // ===== INTERNAL =====
-    function _toString(uint256 value) internal pure returns (string memory) {
-        if (value == 0) return "0";
-        uint256 temp = value;
-        uint256 digits;
-        while (temp != 0) {
-            digits++;
-            temp /= 10;
-        }
-        bytes memory buffer = new bytes(digits);
-        while (value != 0) {
-            digits -= 1;
-            buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
-            value /= 10;
-        }
-        return string(buffer);
-=======
-pragma solidity ^0.8.24; 
-
-import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/token/common/ERC2981.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 
-contract UITShareNFT is ERC1155, ERC2981, Ownable {
-    using Strings for uint256;
+contract UITShareMarketplace is Ownable, ReentrancyGuard {
+    using ERC165Checker for address;
 
-    uint256 private _tokenIdCounter;
-    uint256 public constant MAX_SUPPLY_LIMIT = 1000; 
-
-    mapping(uint256 => address) public creators;
-    mapping(uint256 => uint256) public totalSupply;
-    mapping(uint256 => string) private _tokenURIs; 
-
-    event DocumentMinted(uint256 indexed tokenId, address indexed creator, uint256 amount, string tokenURI);
-    event DocumentBurned(uint256 indexed tokenId, address indexed burner, uint256 amount);
-
-    constructor() ERC1155("") Ownable(msg.sender) {}
-
-    function mint(uint256 amount_, string memory tokenURI_, bytes memory data_) 
-        public 
-        returns (uint256) 
-    {
-        require(amount_ > 0 && amount_ <= MAX_SUPPLY_LIMIT, "Invalid amount");
-        require(bytes(tokenURI_).length > 0, "URI cannot be empty");
-
-        _tokenIdCounter++;
-        uint256 tokenId = _tokenIdCounter;
-
-        creators[tokenId] = msg.sender;
-        totalSupply[tokenId] = amount_;
-        _tokenURIs[tokenId] = tokenURI_;
-
-        _mint(msg.sender, tokenId, amount_, data_);
-        
-        emit DocumentMinted(tokenId, msg.sender, amount_, tokenURI_);
-        return tokenId;
+    struct Order {
+        address seller;
+        uint256 tokenId;
+        uint256 amount;
+        uint256 price; 
+        bool active;
     }
 
-    function burn(address account, uint256 id, uint256 value) public {
+    mapping(uint256 => Order) public orders;
+    uint256 private orderIdCount = 1;
     
-        require(creators[id] != address(0), "Token does not exist");
-        require(
-            account == msg.sender || isApprovedForAll(account, msg.sender),
-            "Not owner nor approved"
-        );
-        require(balanceOf(account, id) >= value, "Burn amount exceeds balance");
+    IERC1155 public immutable nftContract;
+    bytes4 private constant _INTERFACE_ID_ERC2981 = 0x2a55205a;
 
-        totalSupply[id] -= value;
-        _burn(account, id, value);
+    uint256 public feeRate;      
+    uint256 public constant FEE_DENOMINATOR = 10000;
+    address public feeRecipient;
+
+    event OrderAdded(uint256 indexed orderId, address indexed seller, uint256 indexed tokenId, uint256 amount, uint256 price);
+    event OrderCancelled(uint256 indexed orderId);
+    event OrderMatched(uint256 indexed orderId, address indexed seller, address indexed buyer, uint256 price, uint256 marketplaceFee, uint256 royaltyAmount);
+    event Donated(address indexed donor, address indexed recipient, uint256 amount);
+    event FeeRateUpdated(uint256 newRate);
+    event FeeRecipientUpdated(address indexed newRecipient);
+
+    constructor(address nftAddress_, uint256 feeRate_, address feeRecipient_) Ownable(msg.sender) {
+        require(nftAddress_ != address(0), "Invalid NFT address");
+        nftContract = IERC1155(nftAddress_);
+        feeRate = feeRate_;
+        feeRecipient = feeRecipient_;
+    }
+
+    function addOrder(uint256 tokenId_, uint256 amount_, uint256 price_) external {
+        require(amount_ > 0, "Amount > 0");
+        require(price_ > 0, "Price > 0");
+        require(nftContract.balanceOf(msg.sender, tokenId_) >= amount_, "Insufficient balance");
+        require(nftContract.isApprovedForAll(msg.sender, address(this)), "Not approved");
+
+        uint256 _orderId = orderIdCount++;
+        orders[_orderId] = Order(msg.sender, tokenId_, amount_, price_, true);
+        nftContract.safeTransferFrom(msg.sender, address(this), tokenId_, amount_, "");
         
-        emit DocumentBurned(id, account, value);
+        emit OrderAdded(_orderId, msg.sender, tokenId_, amount_, price_);
     }
 
-    function uri(uint256 tokenId) public view override returns (string memory) {
+    function cancelOrder(uint256 orderId_) external nonReentrant {
+        Order storage order = orders[orderId_];
+        require(order.active && order.seller == msg.sender, "Unauthorized or inactive");
 
-        require(creators[tokenId] != address(0), "URI query for nonexistent token");
-        return _tokenURIs[tokenId];
+        order.active = false;
+        uint256 _tid = order.tokenId;
+        uint256 _amt = order.amount;
+        delete orders[orderId_]; 
+
+        nftContract.safeTransferFrom(address(this), msg.sender, _tid, _amt, "");
+        emit OrderCancelled(orderId_);
     }
 
-    function supportsInterface(bytes4 interfaceId) 
-        public 
-        view 
-        override(ERC1155, ERC2981) 
-        returns (bool) 
-    {
-        return super.supportsInterface(interfaceId);
+    function executeOrder(uint256 orderId_) external payable nonReentrant {
+        Order storage order = orders[orderId_];
+        require(order.active, "Order inactive");
+        require(msg.value >= order.price, "Insufficient ETH");
+        require(order.seller != msg.sender, "Seller cannot buy");
+
+        order.active = false;
+        uint256 totalPrice = order.price;
+
+        uint256 marketplaceFee = (totalPrice * feeRate) / FEE_DENOMINATOR;
+        uint256 royaltyAmount = 0;
+        address author = address(0);
+
+        if (address(nftContract).supportsInterface(_INTERFACE_ID_ERC2981)) {
+            (author, royaltyAmount) = IERC2981(address(nftContract)).royaltyInfo(order.tokenId, totalPrice);
+        }
+
+        require(totalPrice >= (marketplaceFee + royaltyAmount), "Fees exceed price");
+        
+        _sendValue(feeRecipient, marketplaceFee);
+        _sendValue(author, royaltyAmount);
+        _sendValue(order.seller, totalPrice - marketplaceFee - royaltyAmount);
+
+        if (msg.value > totalPrice) {
+            _sendValue(msg.sender, msg.value - totalPrice);
+        }
+
+        nftContract.safeTransferFrom(address(this), msg.sender, order.tokenId, order.amount, "");
+        emit OrderMatched(orderId_, order.seller, msg.sender, totalPrice, marketplaceFee, royaltyAmount);
+        delete orders[orderId_];
     }
 
-    function getCurrentTokenId() public view returns (uint256) {
-        return _tokenIdCounter;
->>>>>>> 0911c5ab3bc1245cca1f048d26fbec846685ae52
+    function donate() external payable {
+        require(msg.value > 0, "Must send ETH");
+        emit Donated(msg.sender, address(this), msg.value);
+    }
+
+    function donateToSeller(address seller) external payable nonReentrant {
+        require(msg.value > 0 && seller != address(0), "Invalid input");
+        _sendValue(seller, msg.value);
+        emit Donated(msg.sender, seller, msg.value);
+    }
+
+    function donateToAuthor(uint256 tokenId) external payable nonReentrant {
+        require(msg.value > 0, "Must send ETH");
+        address author;
+        if (address(nftContract).supportsInterface(_INTERFACE_ID_ERC2981)) {
+            (author, ) = IERC2981(address(nftContract)).royaltyInfo(tokenId, msg.value);
+        }
+        require(author != address(0), "Author not found");
+        _sendValue(author, msg.value);
+        emit Donated(msg.sender, author, msg.value);
+    }
+
+
+    function withdrawFunds() external onlyOwner nonReentrant {
+        uint256 balance = address(this).balance;
+        require(balance > 0, "No funds");
+        (bool success, ) = payable(owner()).call{value: balance}("");
+        require(success, "Transfer failed");
+    }
+
+    function setFeeRate(uint256 newRate) external onlyOwner {
+    require(newRate <= 2000, "Fee too high");
+    feeRate = newRate;
+    
+    emit FeeRateUpdated(newRate);
+}
+
+    function setFeeRecipient(address newRecipient) external onlyOwner {
+        require(newRecipient != address(0), "Invalid address");
+        feeRecipient = newRecipient;
+    
+        emit FeeRecipientUpdated(newRecipient);
+    }
+
+
+    function _sendValue(address recipient, uint256 amount) internal {
+        if (amount > 0 && recipient != address(0)) {
+            (bool success, ) = payable(recipient).call{value: amount}("");
+            require(success, "Transfer failed");
+        }
+    }
+
+    receive() external payable {
+        if (msg.value > 0) emit Donated(msg.sender, address(this), msg.value);
+    }
+
+    function onERC1155Received(address, address, uint256, uint256, bytes memory) public pure returns (bytes4) {
+        return this.onERC1155Received.selector;
+    }
+
+    function onERC1155BatchReceived(address, address, uint256[] memory, uint256[] memory, bytes memory) public pure returns (bytes4) {
+        return this.onERC1155BatchReceived.selector;
     }
 }

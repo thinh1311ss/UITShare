@@ -3,32 +3,42 @@ const mongoose = require("mongoose");
 const DocumentSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: String,
-  fileUrl: { type: String, required: true }, // Link tải file (thường là private S3 hoặc IPFS)
-  cid: { type: String }, // Content ID trên IPFS để lưu vào Metadata NFT
 
-  author: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
+  // IPFS
+  fileUrl: { type: String, required: true },
+  cid: { type: String, required: true },
+
+  author: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  authorWallet: { type: String },
+
+  subject: { type: String, required: true },
+  category: {
+    type: String,
+    enum: ["exam", "slide", "assignment", "project"],
     required: true,
   },
 
-  subject: String,
-  price: { type: Number, default: 0 }, // Giá niêm yết (đơn vị ETH)
-
+  price: { type: Number, default: 0 },
   accessType: {
     type: String,
     enum: ["free", "paid", "nft-gated"],
     default: "free",
   },
 
-  // Kết nối với Blockchain
-  tokenId: { type: Number, unique: true, sparse: true },
-  contractAddress: String,
-  isMinted: { type: Boolean, default: false },
+  royaltyPercent: { type: Number, default: 10 },
+  royaltyReceiver: { type: String },
 
-  totalSupply: { type: Number, default: 0 }, // Tổng số lượng NFT được tạo ra (Max Supply)
+  tokenId: { type: Number, unique: true, sparse: true },
+  contractAddress: { type: String },
+  isMinted: { type: Boolean, default: false },
+  totalSupply: { type: Number, default: 0 },
+  amount: { type: Number, default: 1, min: 1 },
+
+  orderId: { type: Number, default: null },
+  isListed: { type: Boolean, default: false },
+
   downloadCount: { type: Number, default: 0 },
-  totalDonations: { type: Number, default: 0 }, // Tổng ETH nhận được từ Donate
+  totalDonations: { type: Number, default: 0 },
 
   createdAt: { type: Date, default: Date.now },
 });
