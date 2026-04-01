@@ -83,7 +83,7 @@ const router = createBrowserRouter([
         element: <SearchResultsPage />,
       },
       {
-        path: "profile",
+        path: "profile/:userId",
         element: <ProfileLayout />,
         children: [
           {
@@ -107,7 +107,7 @@ const router = createBrowserRouter([
             element: <UploadedDocs />,
           },
           {
-            path: "donationsReceived",
+            path: ":userId/donationsReceived",
             element: <DonationsReceived />,
           },
         ],

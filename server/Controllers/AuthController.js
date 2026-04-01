@@ -13,8 +13,8 @@ const register = async (req, res) => {
       studentId: null,
       bio: "",
       facebookLink: "",
-      avatar: "",
-      coverImage: "",
+      avatar: "http://localhost:5000/uploads/avatar/default.jpg",
+      coverImage: "http://localhost:5000/uploads/coverImage/default.jpg",
       role: "user",
       profileCompletion: 50,
     });
@@ -53,7 +53,7 @@ const login = async (req, res) => {
       },
       process.env.SECRET_JWT,
       {
-        expiresIn: 300,
+        expiresIn: 3600,
       },
     );
 
