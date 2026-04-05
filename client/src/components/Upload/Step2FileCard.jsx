@@ -235,6 +235,7 @@ const Step2FileCard = ({
                     value={formData.amount}
                     min="1"
                     step="1"
+                    max="1000"
                     className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-sm text-white transition-colors outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-400"
                     placeholder="VD: 10"
                     onChange={(e) =>

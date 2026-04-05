@@ -21,13 +21,18 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({ storage });
+const upload = multer({ dest: "uploads/" });
 
 router.post(
   "/upload",
-  [authMiddleware.isAuthentication],
-  upload.single("file"),
+  authMiddleware,
+  upload.fields([
+    { name: "file", maxCount: 1 },
+    { name: "preview", maxCount: 1 },
+  ]),
   documentController.uploadDocument,
 );
+
+router.get("/documentList", documentController.getListDocument);
 
 module.exports = router;
