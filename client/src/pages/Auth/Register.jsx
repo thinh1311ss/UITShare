@@ -57,7 +57,18 @@ const Register = () => {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 h-screen bg-transparent text-white">
+    <div className="grid grid-cols-1 md:grid-cols-2 h-screen bg-transparent text-white relative">
+      
+      <div className="absolute top-6 right-6 md:top-8 md:right-8 z-50">
+        <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+          <img
+            src="/UIT-Share-Logo-2.svg"
+            alt="UITShare Logo"
+            className="h-8 md:h-10 object-contain"
+          />
+        </Link>
+      </div>
+
       <div className="hidden md:block p-2">
         <div className="h-full w-full rounded-2xl overflow-hidden relative border border-white/10">
           <img

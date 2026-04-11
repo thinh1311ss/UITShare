@@ -45,9 +45,20 @@ const Login = () => {
   };
 
   return (
-     <div className="grid grid-cols-1 md:grid-cols-2 h-screen bg-transparent text-white">
+    <div className="grid grid-cols-1 md:grid-cols-2 h-screen bg-transparent text-white relative">
+      
+      <div className="absolute top-6 left-6 md:top-8 md:left-8 z-50">
+        <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+          <img
+            src="/UIT-Share-Logo-2.svg"
+            alt="UITShare Logo"
+            className="h-8 md:h-10 object-contain"
+          />
+        </Link>
+      </div>
+
       <div className="flex flex-col justify-center items-center p-6 md:p-12 overflow-y-auto z-10">
-        <div className="w-full max-w-100">
+        <div className="w-full max-w-100"> 
           <div className="flex justify-center mb-8">
             <div className="bg-white/10 backdrop-blur-md border border-white/20 p-1 rounded-full flex items-center">
               <button className="bg-purple-600 text-white shadow-sm px-6 py-1.5 rounded-full text-sm font-semibold transition-all">
@@ -59,9 +70,9 @@ const Login = () => {
             </div>
           </div>
 
-          <div className="text-center mb-8">
+          <div className="mb-8 text-center">
             <h1 className="text-3xl font-bold text-white mb-2">Xin chào</h1>
-            <p className="text-gray-400 text-sm">Vui lòng nhập thông tin của bạn để đăng nhập</p>
+             <p className="text-gray-400 text-sm">Vui lòng nhập thông tin của bạn để đăng nhập</p>
           </div>
 
           <form className="space-y-5" onSubmit={handleLogin}>
@@ -80,7 +91,7 @@ const Login = () => {
             </div>
 
             <div>
-              <div className="flex justify-between items-center mb-1.5">
+              <div className="mb-1.5 flex items-center justify-between">
                 <label className="block text-sm font-semibold text-gray-300">Mật khẩu</label>
                 <Link to="/forgotpassword" className="text-xs text-gray-400 hover:text-purple-400 font-medium transition-colors">Quên mật khẩu?</Link>
               </div>
@@ -115,19 +126,19 @@ const Login = () => {
         </div>
       </div>
 
-      <div className="hidden md:block p-2">
+      <div className="hidden p-2 md:block">
         <div className="h-full w-full rounded-2xl overflow-hidden relative border border-white/10">
           <img
             src={loginImg}
             alt="Login Banner"
-            className="h-full w-full object-cover object-right opacity-80"
+             className="h-full w-full object-cover object-right opacity-80"
           />
 
           <div className="absolute bottom-0 left-0 right-0 h-3/4 bg-linear-to-t from-[#050816] via-[#050816]/70 to-transparent"></div>
 
-          <div className="absolute bottom-10 left-6 right-6 text-white z-10">
+          <div className="absolute right-6 bottom-10 left-6 z-10 text-white">
             <h3 className="text-3xl font-bold mb-2 drop-shadow-md text-transparent bg-clip-text bg-linear-to-r from-purple-400 via-blue-400 to-cyan-400">UITShare</h3>
-              <p className="text-gray-300 text-sm leading-relaxed drop-shadow-sm">
+            <p className="text-gray-300 text-sm leading-relaxed drop-shadow-sm">
               Nền tảng chia sẻ tài liệu số 1 dành cho sinh viên UIT.
               <br />
               Học tập hiệu quả, chia sẻ đam mê.
