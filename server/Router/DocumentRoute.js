@@ -23,6 +23,10 @@ const storage = multer.diskStorage({
 
 const upload = multer({ dest: "uploads/" });
 
+router.get("/documentDetail/:documentId", documentController.getDocumentDetail);
+
+router.delete("/deleteDocument/:documentId", documentController.deleteDocument);
+
 router.post(
   "/upload",
   authMiddleware.isAuthentication,

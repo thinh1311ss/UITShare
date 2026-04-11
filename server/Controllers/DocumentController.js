@@ -257,4 +257,66 @@ const getListDocument = async (req, res) => {
   }
 };
 
-module.exports = { uploadDocument, getListDocument };
+const deleteDocument = async (req, res) => {
+  try {
+    const { documentId } = req.params;
+
+    const document = await documentModel.findById(documentId);
+    if (!document) {
+      return res.status(404).json({ message: "Không tìm thấy tài liệu" });
+    }
+
+    await documentModel.findByIdAndDelete(documentId);
+    await nftModel.deleteOne({ document: documentId });
+
+    return res.status(200).json({ message: "Xóa tài liệu thành công" });
+  } catch (error) {
+    console.error("[deleteDocument]", error);
+    return res.status(500).json({ message: error.message || "Lỗi server" });
+  }
+};
+
+const getDocumentDetail = async (req, res) => {
+  try {
+    const { documentId } = req.params;
+
+    const document = await documentModel
+      .findById(documentId)
+      .populate("author", "userName email avatar");
+
+    if (!document) {
+      return res.status(404).json({ message: "Không tìm thấy tài liệu" });
+    }
+
+    const rootComments = await commentModel.find({
+      document: documentId,
+      parentComment: null,
+    });
+
+    const ratedComments = rootComments.filter((c) => c.rating != null);
+    const averageRating =
+      ratedComments.length > 0
+        ? Math.round(
+            (ratedComments.reduce((sum, c) => sum + c.rating, 0) /
+              ratedComments.length) *
+              10,
+          ) / 10
+        : null;
+
+    return res.status(200).json({
+      ...document.toObject(),
+      commentCount: rootComments.length,
+      averageRating,
+    });
+  } catch (error) {
+    console.error("[getDocumentDetail]", error);
+    return res.status(500).json({ message: error.message || "Lỗi server" });
+  }
+};
+
+module.exports = {
+  uploadDocument,
+  getListDocument,
+  deleteDocument,
+  getDocumentDetail,
+};

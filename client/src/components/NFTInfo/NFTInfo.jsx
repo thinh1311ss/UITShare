@@ -2,11 +2,11 @@ import { Copy } from "lucide-react";
 
 export default function NFTInfo({ nft }) {
   return (
-    <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-6">
-      <div className="flex items-center gap-2 mb-5">
-        <div className="w-7 h-7 rounded-lg bg-purple-500/20 flex items-center justify-center">
+    <div className="rounded-xl border border-white/10 bg-white/5 p-6 backdrop-blur-md">
+      <div className="mb-5 flex items-center gap-2">
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-500/20">
           <svg
-            className="w-3.5 h-3.5 text-purple-400"
+            className="h-3.5 w-3.5 text-purple-400"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -22,30 +22,36 @@ export default function NFTInfo({ nft }) {
 
       <div className="grid grid-cols-2 gap-5">
         {[
-          { label: "Giá",        value: `${nft.price} ${nft.currency}`, highlight: true },
-          { label: "Token ID",   value: nft.tokenId },
-          { label: "Blockchain", value: nft.chain },
-          { label: "Owner",      value: nft.owner },
+          {
+            label: "Giá",
+            value: `${nft.price} ETH`,
+            highlight: true,
+          },
+          { label: "Token ID", value: nft.tokenId },
+          { label: "Hoa hồng", value: nft.royalty ? `${nft.royalty}%` : "0%" },
+          { label: "Ví tác giả", value: nft.authorWallet },
         ].map((item) => (
           <div key={item.label}>
-            <p className="text-xs text-gray-500 mb-1">{item.label}</p>
-            <p className={`text-sm font-semibold ${item.highlight ? "text-purple-400 text-lg" : "text-white"}`}>
+            <p className="mb-1 text-xs text-gray-500">{item.label}</p>
+            <p
+              className={`text-sm font-semibold ${item.highlight ? "text-lg text-purple-400" : "text-white"}`}
+            >
               {item.value}
             </p>
           </div>
         ))}
 
         <div className="col-span-2">
-          <p className="text-xs text-gray-500 mb-1">Contract Address</p>
+          <p className="mb-1 text-xs text-gray-500">Địa chỉ hợp đồng</p>
           <div className="flex items-center gap-2">
-            <p className="text-sm font-semibold text-white font-mono">
+            <p className="font-mono text-sm font-semibold text-white">
               {nft.contractAddress.slice(0, 20)}...
             </p>
             <button
               onClick={() => navigator.clipboard.writeText(nft.contractAddress)}
-              className="text-white/40 hover:text-cyan-400 transition-colors cursor-pointer"
+              className="cursor-pointer text-white/40 transition-colors hover:text-cyan-400"
             >
-              <Copy className="w-3.5 h-3.5" />
+              <Copy className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
