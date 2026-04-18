@@ -2,7 +2,6 @@ import { FiChevronLeft } from "react-icons/fi";
 import Step2FileCard from "./Step2Filecard";
 import { useState } from "react";
 import axios from "../../common";
-import { useNavigate } from "react-router";
 import { FiAlertTriangle, FiXCircle } from "react-icons/fi";
 
 const Step2Detail = ({ file, prevStep, onSubmit, onReset }) => {

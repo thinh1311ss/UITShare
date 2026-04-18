@@ -1,4 +1,5 @@
-﻿const PinataSDK = require("@pinata/sdk");
+﻿const mongoose = require("mongoose");
+const PinataSDK = require("@pinata/sdk");
 const fs = require("fs");
 const { ethers } = require("ethers");
 const { PDFDocument } = require("pdf-lib");
@@ -8,6 +9,7 @@ const userModel = require("../Models/UserModel");
 const commentModel = require("../Models/CommentModel");
 const transactionModel = require("../Models/TransactionModel");
 const { createHash } = require("node:crypto");
+const { createListing } = require("./MarketplaceController");
 
 const pinata = new PinataSDK(
   process.env.PINATA_API_KEY,
@@ -17,6 +19,8 @@ const pinata = new PinataSDK(
 const NFT_ABI = [
   "function mint(uint256 amount_, string memory tokenURI_, uint96 royaltyBps_, bytes memory data_) public returns (uint256)",
   "function getCurrentTokenId() view returns (uint256)",
+  "function setApprovalForAll(address operator, bool approved) external",
+  "function isApprovedForAll(address account, address operator) view returns (bool)",
   "event TransferSingle(address indexed operator, address indexed from, address indexed to, uint256 id, uint256 value)",
 ];
 
@@ -96,7 +100,7 @@ const uploadDocument = async (req, res) => {
     let parsedPageCount = null;
     if (mainFile.mimetype === "application/pdf") {
       try {
-        const pdfDoc = await PDFDocument.load(fileBuffer); // dùng lại buffer đã đọc
+        const pdfDoc = await PDFDocument.load(fileBuffer);
         parsedPageCount = pdfDoc.getPageCount();
       } catch (err) {
         console.error("[pdf-lib error]", err.message);
@@ -149,7 +153,7 @@ const uploadDocument = async (req, res) => {
       `${title?.trim() || mainFile.originalname}_metadata`,
     );
 
-    // 3. Setup contract
+    // 3. Setup provider + signer + contracts
     const provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC_URL);
     const signer = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
     const nftContract = new ethers.Contract(
@@ -158,7 +162,26 @@ const uploadDocument = async (req, res) => {
       signer,
     );
 
-    // 4. Mint
+    // 4. Approve marketplace nếu chưa được approve (chỉ tốn gas 1 lần duy nhất)
+    if (parsedPrice > 0) {
+      const isApproved = await nftContract.isApprovedForAll(
+        signer.address,
+        process.env.MARKETPLACE_CONTRACT_ADDRESS,
+      );
+      if (!isApproved) {
+        console.log(
+          "[uploadDocument] Chưa approve, đang gọi setApprovalForAll...",
+        );
+        const approveTx = await nftContract.setApprovalForAll(
+          process.env.MARKETPLACE_CONTRACT_ADDRESS,
+          true,
+        );
+        await approveTx.wait();
+        console.log("[uploadDocument] setApprovalForAll thành công");
+      }
+    }
+
+    // 5. Mint
     const currentId = await nftContract.getCurrentTokenId();
     const tx = await nftContract.mint(
       parsedAmount,
@@ -168,7 +191,7 @@ const uploadDocument = async (req, res) => {
     );
     const receipt = await tx.wait();
 
-    // 5. Lấy tokenId từ event
+    // 6. Lấy tokenId từ event TransferSingle
     const iface = new ethers.Interface(NFT_ABI);
     let tokenId = Number(currentId) + 1;
     for (const log of receipt.logs) {
@@ -181,7 +204,7 @@ const uploadDocument = async (req, res) => {
       } catch (_) {}
     }
 
-    // 6. Lưu Document — thêm fileHash
+    // 7. Lưu Document
     const newDocument = await documentModel.create({
       title: title?.trim() || mainFile.originalname,
       description: description?.trim() || "",
@@ -197,12 +220,13 @@ const uploadDocument = async (req, res) => {
       royaltyPercent: parsedRoyalty,
       royaltyReceiver: user.walletAddress,
       totalSupply: parsedAmount,
+      remainingSupply: parsedPrice > 0 ? parsedAmount : 0,
       tokenId,
       contractAddress: process.env.NFT_CONTRACT_ADDRESS,
       isMinted: true,
     });
 
-    // 7. Lưu NFT ownership
+    // 8. Lưu NFT ownership cho tác giả
     await nftModel.create({
       user: req.userId,
       document: newDocument._id,
@@ -210,6 +234,19 @@ const uploadDocument = async (req, res) => {
       amount: parsedAmount,
       ownerAddress: user.walletAddress,
     });
+
+    // 9. Tạo listing trên marketplace (chỉ khi price > 0)
+    if (parsedPrice > 0) {
+      await createListing({
+        sellerId: req.userId,
+        sellerAddress: user.walletAddress,
+        documentId: newDocument._id,
+        tokenId,
+        amount: parsedAmount,
+        price: parsedPrice,
+        isOriginalCreator: true,
+      });
+    }
 
     return res.status(201).json({
       message: "Tải lên và mint NFT thành công",
@@ -283,6 +320,10 @@ const getDocumentDetail = async (req, res) => {
   try {
     const { documentId } = req.params;
 
+    if (!documentId || !mongoose.Types.ObjectId.isValid(documentId)) {
+      return res.status(400).json({ message: "documentId không hợp lệ" });
+    }
+
     const document = await documentModel
       .findById(documentId)
       .populate("author", "userName email avatar");
@@ -322,18 +363,16 @@ const getNFTTransactionHistory = async (req, res) => {
     const { tokenId } = req.params;
 
     const transactions = await transactionModel
-      .find({
-        tokenId,
-        status: "success",
-      })
+      .find({ tokenId, status: "success" })
       .sort({ createdAt: -1 })
       .populate("fromUser", "userName")
       .populate("toUser", "userName")
       .lean();
 
-    res.json(transactions);
+    return res.json(transactions);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("[getNFTTransactionHistory]", err);
+    return res.status(500).json({ message: err.message });
   }
 };
 

@@ -108,7 +108,7 @@ const Step1Dropzone = ({ onNextStep, initialFile = [] }) => {
           </button>
 
           <p className="mt-4 text-xs text-gray-500">
-            Hỗ trợ: PDF, DOC, DOCX (Tối đa 200MB)
+            Hỗ trợ: PDF (Tối đa 200MB)
           </p>
         </div>
 
