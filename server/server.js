@@ -9,6 +9,7 @@ const personalRoute = require("./Router/PersonalRoute");
 const authorRoute = require("./Router/AuthorRoute");
 const marketplaceRoute = require("./Router/MarketplaceRoute");
 const listingRoute = require("./Router/ListingRoute");
+const walletRoute = require("./Router/WalletRoute");
 
 //cors middleware for all request
 app.use(
@@ -32,6 +33,7 @@ app.use("/api/documents", documentRoute);
 app.use("/api/author", authorRoute);
 app.use("/api/marketplace", marketplaceRoute);
 app.use("/api/listing", listingRoute);
+app.use("/api/wallet", walletRoute);
 
 app.listen(process.env.PORT, function () {
   console.log("server is running");
