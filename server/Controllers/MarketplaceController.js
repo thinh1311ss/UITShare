@@ -99,35 +99,27 @@ const createListing = async ({
 //  buyDocument
 const buyDocument = async (req, res) => {
   try {
-    const { orderId } = req.body;
+    const { orderId, txHash } = req.body;
     const buyerId = req.userId;
 
-    if (!orderId) {
-      return res.status(400).json({ message: "Thiếu orderId" });
+    if (!orderId || !txHash) {
+      return res.status(400).json({ message: "Thiếu orderId hoặc txHash" });
     }
 
-    // 1. Kiểm tra listing
+    // 1. Chống replay: txHash không được xử lý 2 lần
+    const existingTx = await transactionModel.findOne({ txHash });
+    if (existingTx) {
+      return res.status(409).json({ message: "Transaction này đã được xử lý" });
+    }
+
+    // 2. Kiểm tra listing trong DB
     const listing = await listingModel
       .findOne({ orderId, status: "active" })
       .populate("document");
-
     if (!listing) {
       return res
         .status(404)
         .json({ message: "Listing không tồn tại hoặc đã hết hàng" });
-    }
-
-    const document = listing.document;
-
-    //  2. Kiểm tra user đã sở hữu NFT này chưa
-    const existingNFT = await nftModel.findOne({
-      user: buyerId,
-      tokenId: listing.tokenId,
-    });
-    if (existingNFT) {
-      return res
-        .status(400)
-        .json({ message: "Bạn đã sở hữu tài liệu này rồi" });
     }
 
     // 3. Kiểm tra buyer có ví chưa
@@ -138,7 +130,7 @@ const buyDocument = async (req, res) => {
         .json({ message: "Bạn cần liên kết ví trước khi mua" });
     }
 
-    // 4. Không cho seller tự mua listing của mình
+    // 4. Không cho seller tự mua
     if (
       listing.sellerAddress.toLowerCase() === buyer.walletAddress.toLowerCase()
     ) {
@@ -147,46 +139,75 @@ const buyDocument = async (req, res) => {
         .json({ message: "Bạn không thể mua listing của chính mình" });
     }
 
-    // 5. Kiểm tra ETH balance của backend wallet
-    const signer = getBackendSigner();
-    const priceInWei = ethers.parseEther(String(listing.price));
-    const backendBalance = await signer.provider.getBalance(signer.address);
+    // 5. Kiểm tra đã sở hữu NFT này chưa
+    const existingNFT = await nftModel.findOne({
+      user: buyerId,
+      tokenId: listing.tokenId,
+    });
+    if (existingNFT) {
+      return res
+        .status(400)
+        .json({ message: "Bạn đã sở hữu tài liệu này rồi" });
+    }
 
-    if (backendBalance < priceInWei) {
-      return res.status(503).json({
-        message:
-          "Hệ thống tạm thời không đủ ETH để xử lý giao dịch, vui lòng thử lại sau",
+    // 6. Verify transaction trên blockchain
+    const provider = getProvider();
+    const receipt = await provider.getTransactionReceipt(txHash);
+
+    if (!receipt) {
+      return res
+        .status(400)
+        .json({ message: "Không tìm thấy transaction trên blockchain" });
+    }
+    if (receipt.status !== 1) {
+      return res
+        .status(400)
+        .json({ message: "Transaction đã thất bại trên blockchain" });
+    }
+
+    // 7. Verify tx gọi đúng marketplace contract
+    if (
+      receipt.to?.toLowerCase() !==
+      process.env.MARKETPLACE_CONTRACT_ADDRESS.toLowerCase()
+    ) {
+      return res.status(400).json({
+        message: "Transaction không tương tác với marketplace contract",
       });
     }
 
-    // 6. Verify order còn active trên chain trước khi execute
-    const marketplace = getMarketplaceContract(signer);
-    const onChainOrder = await marketplace.orders(orderId);
-    if (!onChainOrder.active) {
-      listing.status = "sold";
-      await listing.save();
+    // 8. Verify tx được gửi từ đúng ví của buyer
+    const txData = await provider.getTransaction(txHash);
+    if (txData?.from?.toLowerCase() !== buyer.walletAddress.toLowerCase()) {
       return res
-        .status(409)
-        .json({ message: "Order này đã được mua hoặc hủy trên blockchain" });
+        .status(403)
+        .json({ message: "Transaction không được gửi từ ví của bạn" });
     }
 
-    // 7. Execute order on-chain
-    const tx = await marketplace.executeOrder(orderId, { value: priceInWei });
-    const receipt = await tx.wait();
+    // 9. Parse event OrderMatched để lấy fee + royalty
+    const iface = new ethers.Interface(MARKETPLACE_ABI);
+    let marketplaceFee = 0n;
+    let royaltyPaid = 0n;
+    let sellerReceived = 0n;
 
-    if (receipt.status !== 1) {
-      return res
-        .status(500)
-        .json({ message: "Transaction thất bại trên blockchain" });
+    for (const log of receipt.logs) {
+      try {
+        const parsed = iface.parseLog(log);
+        if (
+          parsed?.name === "OrderMatched" &&
+          parsed.args.orderId.toString() === String(orderId)
+        ) {
+          marketplaceFee = parsed.args.marketplaceFee ?? 0n;
+          royaltyPaid = parsed.args.royaltyAmount ?? 0n;
+          const priceInWei = ethers.parseEther(String(listing.price));
+          sellerReceived = priceInWei - marketplaceFee - royaltyPaid;
+          break;
+        }
+      } catch (_) {}
     }
 
-    // 8. Parse event OrderMatched
-    const args = parseEventFromReceipt(receipt, "OrderMatched");
-    const marketplaceFee = args?.marketplaceFee ?? 0n;
-    const royaltyPaid = args?.royaltyAmount ?? 0n;
-    const sellerReceived = priceInWei - marketplaceFee - royaltyPaid;
+    const document = listing.document;
 
-    // 9. Cập nhật DB
+    // 10. Cập nhật DB
     listing.status = "sold";
     listing.soldAt = new Date();
     await listing.save();
@@ -224,14 +245,14 @@ const buyDocument = async (req, res) => {
       sellerReceived: Number(ethers.formatEther(sellerReceived)),
       isSecondary: !listing.isOriginalCreator,
       type: "buy",
-      txHash: receipt.hash,
+      txHash,
       blockNumber: receipt.blockNumber,
       status: "success",
     });
 
     return res.status(200).json({
       message: "Mua tài liệu thành công",
-      txHash: receipt.hash,
+      txHash,
     });
   } catch (error) {
     console.error("[buyDocument]", error);

@@ -1,22 +1,27 @@
-const userModel = require("../Models/UserModel");
+const mongoose = require("mongoose");
 const listingModel = require("../Models/ListingModel");
 
 const getActiveListing = async (req, res) => {
-  const { documentId } = req.params;
+  try {
+    const { documentId } = req.params;
 
-  // DEBUG
-  const allListings = await listingModel.find({ document: documentId });
-  console.log("All listings for doc:", documentId, JSON.stringify(allListings));
+    if (!mongoose.Types.ObjectId.isValid(documentId)) {
+      return res.status(400).json({ message: "documentId không hợp lệ" });
+    }
 
-  const listing = await listingModel
-    .findOne({ document: documentId, status: "active" })
-    .select("orderId price amount");
+    const listing = await listingModel
+      .findOne({ document: documentId, status: "active" })
+      .select("orderId price amount");
 
-  if (!listing)
-    return res.status(404).json({ message: "Không có listing active" });
-  return res.json(listing);
+    if (!listing) {
+      return res.status(404).json({ message: "Không có listing active" });
+    }
+
+    return res.json(listing);
+  } catch (err) {
+    console.error("[getActiveListing]", err);
+    return res.status(500).json({ message: err.message || "Lỗi server" });
+  }
 };
 
-module.exports = {
-  getActiveListing,
-};
+module.exports = { getActiveListing };

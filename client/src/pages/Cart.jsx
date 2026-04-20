@@ -11,10 +11,16 @@ import {
   Loader2,
   ArrowRight,
   ShieldCheck,
+  Sparkles,
 } from "lucide-react";
 import { ethers } from "ethers";
 import axios from "../common";
 import { jwtDecode } from "jwt-decode";
+
+const MARKETPLACE_ABI = [
+  "function executeOrder(uint256 orderId_) external payable",
+  "event OrderMatched(uint256 indexed orderId, address indexed seller, address indexed buyer, uint256 price, uint256 marketplaceFee, uint256 royaltyAmount)",
+];
 
 const ITEM_STATUS = {
   PENDING: "pending",
@@ -38,7 +44,6 @@ export default function Cart() {
   const payloadDecoded = jwtDecode(accessToken);
   const userId = payloadDecoded._id;
 
-  // Modal trạng thái
   const [walletModal, setWalletModal] = useState(false);
   const [balanceModal, setBalanceModal] = useState(false);
   const [balanceInfo, setBalanceInfo] = useState({
@@ -46,10 +51,11 @@ export default function Cart() {
     required: "0",
   });
 
-  // Trạng thái checkout
   const [checkoutStep, setCheckoutStep] = useState(CHECKOUT_STEP.IDLE);
   const [itemStatuses, setItemStatuses] = useState({});
   const [checkoutDone, setCheckoutDone] = useState(false);
+  const [successModal, setSuccessModal] = useState(false);
+  const [successCount, setSuccessCount] = useState(0);
 
   const total = cartItems.reduce((sum, item) => sum + (item.price || 0), 0);
   const isProcessing =
@@ -74,19 +80,16 @@ export default function Cart() {
   const fetchOrderId = async (documentId) => {
     const res = await axios.get(`/api/listing/active/${documentId}`);
     if (!res.data?.orderId) throw new Error("Không tìm thấy listing active");
-    return res.data.orderId;
+    return { orderId: res.data.orderId, price: res.data.price };
   };
 
-  // Main checkout handler
   const handleCheckout = async () => {
     setCheckoutStep(CHECKOUT_STEP.CHECKING);
 
-    // 1. Kiểm tra đã liên kết ví chưa
     const token = localStorage.getItem("access_token");
     let walletAddress = null;
     try {
-      const decoded = jwtDecode(token);
-      walletAddress = decoded?.walletAddress;
+      walletAddress = jwtDecode(token)?.walletAddress;
     } catch {
       walletAddress = null;
     }
@@ -96,7 +99,6 @@ export default function Cart() {
       return;
     }
 
-    // 2. Kiểm tra MetaMask có sẵn không
     if (!window.ethereum) {
       setCheckoutStep(CHECKOUT_STEP.IDLE);
       setWalletModal(true);
@@ -104,13 +106,11 @@ export default function Cart() {
     }
 
     try {
-      // 3. Kết nối MetaMask + lấy số dư
       const provider = new ethers.BrowserProvider(window.ethereum);
       await provider.send("eth_requestAccounts", []);
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
 
-      // Kiểm tra địa chỉ ví khớp với ví đã liên kết
       if (address.toLowerCase() !== walletAddress.toLowerCase()) {
         setCheckoutStep(CHECKOUT_STEP.IDLE);
         setBalanceInfo({
@@ -124,21 +124,23 @@ export default function Cart() {
 
       const balanceWei = await provider.getBalance(address);
       const balanceEth = parseFloat(ethers.formatEther(balanceWei));
-      const requiredEth = total;
-
-      // 4. Kiểm tra số dư
-      if (balanceEth < requiredEth) {
+      if (balanceEth < total) {
         setCheckoutStep(CHECKOUT_STEP.IDLE);
         setBalanceInfo({
           balance: balanceEth.toFixed(4),
-          required: requiredEth.toFixed(4),
-          shortfall: (requiredEth - balanceEth).toFixed(4),
+          required: total.toFixed(4),
+          shortfall: (total - balanceEth).toFixed(4),
         });
         setBalanceModal(true);
         return;
       }
 
-      // 5. Bắt đầu mua từng item
+      const marketplace = new ethers.Contract(
+        import.meta.env.VITE_MARKETPLACE_CONTRACT_ADDRESS,
+        MARKETPLACE_ABI,
+        signer,
+      );
+
       setCheckoutStep(CHECKOUT_STEP.PROCESSING);
       const succeededIds = [];
 
@@ -146,35 +148,53 @@ export default function Cart() {
         setItemStatus(item._id, { status: ITEM_STATUS.PROCESSING });
 
         try {
-          // Lấy orderId từ listing
-          const orderId = await fetchOrderId(item._id);
+          const { orderId, price } = await fetchOrderId(item._id);
+          const priceInWei = ethers.parseEther(String(price));
 
-          // Gọi API mua
-          const res = await axios.post("/api/marketplace/buy", { orderId });
+          const tx = await marketplace.executeOrder(orderId, {
+            value: priceInWei,
+          });
+          const receipt = await tx.wait();
+
+          if (receipt.status !== 1) {
+            throw new Error("Transaction thất bại trên blockchain");
+          }
+
+          await axios.post("/api/marketplace/buy", {
+            orderId,
+            txHash: receipt.hash,
+          });
 
           setItemStatus(item._id, {
             status: ITEM_STATUS.SUCCESS,
-            txHash: res.data.txHash,
+            txHash: receipt.hash,
           });
           succeededIds.push(item._id);
         } catch (err) {
+          const message =
+            err.code === 4001
+              ? "Bạn đã từ chối giao dịch"
+              : err.response?.data?.message ||
+                err.message ||
+                "Giao dịch thất bại";
           setItemStatus(item._id, {
             status: ITEM_STATUS.FAILED,
-            error:
-              err.response?.data?.message ||
-              err.message ||
-              "Giao dịch thất bại",
+            error: message,
           });
         }
       }
 
-      // 6. Xóa những item mua thành công khỏi giỏ
       if (succeededIds.length > 0) {
         removeMultipleFromCart(succeededIds);
       }
 
       setCheckoutStep(CHECKOUT_STEP.DONE);
       setCheckoutDone(true);
+      setSuccessCount(succeededIds.length);
+
+      if (succeededIds.length > 0) {
+        setSuccessModal(true);
+      }
     } catch (err) {
       console.error("[checkout]", err);
       setCheckoutStep(CHECKOUT_STEP.IDLE);
@@ -183,27 +203,23 @@ export default function Cart() {
 
   const StatusBadge = ({ docId }) => {
     const s = itemStatuses[docId];
-    if (!s) return null;
+    if (!s || checkoutStep === CHECKOUT_STEP.IDLE) return null;
 
-    if (checkoutStep === CHECKOUT_STEP.IDLE) return null;
-
-    if (s.status === ITEM_STATUS.PROCESSING) {
+    if (s.status === ITEM_STATUS.PROCESSING)
       return (
         <span className="flex items-center gap-1 text-xs text-blue-400">
           <Loader2 className="h-3 w-3 animate-spin" />
           Đang xử lý
         </span>
       );
-    }
-    if (s.status === ITEM_STATUS.SUCCESS) {
+    if (s.status === ITEM_STATUS.SUCCESS)
       return (
         <span className="flex items-center gap-1 text-xs text-green-400">
           <CheckCircle2 className="h-3 w-3" />
           Thành công
         </span>
       );
-    }
-    if (s.status === ITEM_STATUS.FAILED) {
+    if (s.status === ITEM_STATUS.FAILED)
       return (
         <span
           className="flex items-center gap-1 text-xs text-red-400"
@@ -213,13 +229,11 @@ export default function Cart() {
           Thất bại
         </span>
       );
-    }
     return null;
   };
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 text-white">
-      {/* Back */}
       <button
         onClick={() => navigate(-1)}
         className="mb-6 flex cursor-pointer items-center gap-2 text-gray-400 transition-colors hover:text-white"
@@ -228,7 +242,6 @@ export default function Cart() {
         <span className="text-sm">Quay lại</span>
       </button>
 
-      {/* Title */}
       <div className="mb-8 flex items-center justify-between">
         <div>
           <p className="mb-1 text-sm font-semibold text-cyan-400">✦ Giỏ hàng</p>
@@ -244,7 +257,6 @@ export default function Cart() {
         )}
       </div>
 
-      {/* Empty state */}
       {cartItems.length === 0 && !checkoutDone ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/5 py-24 backdrop-blur-md">
           <HiOutlineShoppingCart className="mb-4 h-16 w-16 text-gray-600" />
@@ -263,7 +275,6 @@ export default function Cart() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {/* Danh sách */}
           <div className="flex flex-col gap-3 lg:col-span-2">
             {cartItems.map((item) => (
               <div
@@ -282,7 +293,6 @@ export default function Cart() {
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-purple-500/20">
                   <FileText className="h-6 w-6 text-purple-400" />
                 </div>
-
                 <div className="min-w-0 flex-1">
                   <p
                     className="line-clamp-2 cursor-pointer text-sm font-semibold text-white hover:text-purple-300"
@@ -298,7 +308,6 @@ export default function Cart() {
                   <p className="mt-1 text-xs text-gray-500">
                     Tác giả: {item.author?.userName || "—"}
                   </p>
-                  {/* Hiển thị txHash nếu thành công */}
                   {itemStatuses[item._id]?.txHash && (
                     <a
                       href={`https://sepolia.etherscan.io/tx/${itemStatuses[item._id].txHash}`}
@@ -309,14 +318,12 @@ export default function Cart() {
                       Tx: {itemStatuses[item._id].txHash.slice(0, 20)}...
                     </a>
                   )}
-                  {/* Hiển thị lỗi nếu thất bại */}
                   {itemStatuses[item._id]?.error && (
                     <p className="mt-1 text-xs text-red-400">
                       {itemStatuses[item._id].error}
                     </p>
                   )}
                 </div>
-
                 <div className="flex shrink-0 flex-col items-end gap-2">
                   <span className="text-sm font-bold text-purple-400">
                     {item.price > 0 ? `${item.price} ETH` : "Free"}
@@ -334,20 +341,10 @@ export default function Cart() {
                 </div>
               </div>
             ))}
-
-            {/* Kết quả sau checkout */}
-            {checkoutDone && (
-              <CheckoutResult
-                statuses={itemStatuses}
-                onContinue={() => navigate("/document")}
-              />
-            )}
           </div>
 
-          {/* Summary */}
           <div className="self-start rounded-xl border border-white/10 bg-white/5 p-6 backdrop-blur-md">
             <h2 className="mb-4 text-lg font-bold text-white">Tổng đơn hàng</h2>
-
             <div className="mb-4 flex flex-col gap-2 border-b border-white/10 pb-4">
               {cartItems.map((item) => (
                 <div
@@ -363,7 +360,6 @@ export default function Cart() {
                 </div>
               ))}
             </div>
-
             <div className="mb-6 flex items-center justify-between">
               <span className="text-sm font-semibold text-gray-300">
                 Tổng cộng
@@ -397,7 +393,6 @@ export default function Cart() {
                     </>
                   )}
                 </button>
-
                 <button
                   onClick={() => navigate("/document")}
                   disabled={isProcessing}
@@ -405,9 +400,8 @@ export default function Cart() {
                 >
                   Tiếp tục mua sắm
                 </button>
-
                 <p className="mt-4 text-center text-xs text-gray-600">
-                  Giao dịch được xử lý qua Sepolia Testnet
+                  Giao dịch được ký bởi MetaMask của bạn qua Sepolia Testnet
                 </p>
               </>
             ) : (
@@ -445,8 +439,7 @@ export default function Cart() {
                 }}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-purple-600 py-3 text-sm font-semibold text-white transition hover:bg-purple-700"
               >
-                Đến trang cá nhân
-                <ArrowRight className="h-4 w-4" />
+                Đến trang cá nhân <ArrowRight className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setWalletModal(false)}
@@ -459,7 +452,7 @@ export default function Cart() {
         </Modal>
       )}
 
-      {/* ── Modal: Không đủ số dư / Sai ví ── */}
+      {/* Modal: Không đủ số dư / Sai ví */}
       {balanceModal && (
         <Modal onClose={() => setBalanceModal(false)}>
           <div className="flex flex-col items-center gap-4 text-center">
@@ -470,7 +463,6 @@ export default function Cart() {
               <h3 className="text-lg font-bold text-white">
                 {balanceInfo.error ? "Sai địa chỉ ví" : "Số dư không đủ"}
               </h3>
-
               {balanceInfo.error ? (
                 <p className="mt-1 text-sm whitespace-pre-line text-gray-400">
                   {balanceInfo.error}
@@ -481,7 +473,6 @@ export default function Cart() {
                 </p>
               )}
             </div>
-
             {!balanceInfo.error && (
               <div className="w-full rounded-xl border border-white/10 bg-white/5 p-4 text-left">
                 <div className="flex justify-between text-sm">
@@ -504,7 +495,6 @@ export default function Cart() {
                 </div>
               </div>
             )}
-
             <button
               onClick={() => setBalanceModal(false)}
               className="w-full rounded-xl bg-purple-600 py-3 text-sm font-semibold text-white transition hover:bg-purple-700"
@@ -514,40 +504,39 @@ export default function Cart() {
           </div>
         </Modal>
       )}
-    </div>
-  );
-}
 
-function CheckoutResult({ statuses, onContinue }) {
-  const entries = Object.entries(statuses);
-  const successCount = entries.filter(
-    ([, s]) => s.status === ITEM_STATUS.SUCCESS,
-  ).length;
-  const failCount = entries.filter(
-    ([, s]) => s.status === ITEM_STATUS.FAILED,
-  ).length;
-
-  return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
-      <div className="flex items-center gap-3">
-        {failCount === 0 ? (
-          <CheckCircle2 className="h-6 w-6 shrink-0 text-green-400" />
-        ) : (
-          <AlertTriangle className="h-6 w-6 shrink-0 text-yellow-400" />
-        )}
-        <div>
-          <p className="text-sm font-bold text-white">
-            {failCount === 0
-              ? "Thanh toán hoàn tất!"
-              : `${successCount} thành công · ${failCount} thất bại`}
-          </p>
-          <p className="text-xs text-gray-500">
-            {failCount > 0
-              ? "Một số tài liệu chưa thanh toán được. Các item thất bại vẫn còn trong giỏ hàng."
-              : "Tài liệu đã được thêm vào thư viện của bạn."}
-          </p>
-        </div>
-      </div>
+      {/* Modal: Thanh toán thành công */}
+      {successModal && (
+        <Modal
+          onClose={() => {
+            setSuccessModal(false);
+            navigate("/document");
+          }}
+        >
+          <div className="flex flex-col items-center gap-5 text-center">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-500/15 ring-1 ring-green-500/30">
+              <Sparkles className="h-10 w-10 text-green-400" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-white">Cảm ơn bạn! 🎉</h3>
+              <p className="mt-2 text-sm leading-relaxed text-gray-400">
+                {successCount} tài liệu đã được thêm vào thư viện của bạn thành
+                công. Chúc bạn học tập hiệu quả!
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setSuccessModal(false);
+                navigate("/document");
+              }}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-purple-600 py-3 text-sm font-semibold text-white transition hover:bg-purple-700"
+            >
+              Khám phá thêm tài liệu
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -555,12 +544,10 @@ function CheckoutResult({ statuses, onContinue }) {
 function Modal({ children, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
         onClick={onClose}
       />
-      {/* Box */}
       <div className="relative z-10 w-full max-w-sm rounded-2xl border border-white/10 bg-[#0f0f1a] p-6 shadow-2xl">
         <button
           onClick={onClose}

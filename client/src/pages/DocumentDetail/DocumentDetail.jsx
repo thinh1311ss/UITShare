@@ -7,6 +7,7 @@ import {
   FileText,
   Check,
   Loader2,
+  BookOpen,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
@@ -174,11 +175,12 @@ export default function DocumentDetail() {
     navigate("/cart");
   };
 
+  const canAccessFull =
+    accessStatus === ACCESS_STATUS.OWNED ||
+    accessStatus === ACCESS_STATUS.AUTHOR;
+
   const renderActionButtons = () => {
-    if (
-      accessStatus === ACCESS_STATUS.AUTHOR ||
-      accessStatus === ACCESS_STATUS.OWNED
-    ) {
+    if (canAccessFull) {
       return (
         <button
           disabled
@@ -192,7 +194,6 @@ export default function DocumentDetail() {
       );
     }
 
-    // Chưa đăng nhập
     if (accessStatus === ACCESS_STATUS.GUEST) {
       return (
         <button
@@ -204,7 +205,6 @@ export default function DocumentDetail() {
       );
     }
 
-    // Đang kiểm tra
     if (accessStatus === ACCESS_STATUS.LOADING) {
       return (
         <button
@@ -296,7 +296,6 @@ export default function DocumentDetail() {
           style={{ zIndex: 0 }}
         />
 
-        {/* Back */}
         <button
           onClick={() => navigate(-1)}
           className="mb-8 flex cursor-pointer items-center gap-2 text-gray-400 transition-colors hover:text-white"
@@ -311,17 +310,14 @@ export default function DocumentDetail() {
         <h2 className="mb-12 text-3xl font-bold md:text-4xl">{doc.title}</h2>
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-          {/* Left */}
           <div className="flex flex-col gap-6 lg:col-span-2">
             <DocumentInfo doc={doc} reviewCount={doc.commentCount} />
             <NFTInfo nft={doc} nftHistory={nftHistory} />
             <DocumentReviews />
           </div>
 
-          {/* Right */}
           <div className="flex flex-col gap-4 self-start lg:sticky lg:top-24">
             <div className="rounded-xl border border-white/10 bg-white/5 p-6 backdrop-blur-md">
-              {/* PDF preview */}
               <div className="mb-5 flex h-80 w-full flex-col items-center gap-4 overflow-y-auto rounded-lg bg-black/40 p-3">
                 <Document
                   file={doc.fileUrl}
@@ -350,7 +346,6 @@ export default function DocumentDetail() {
                 </Document>
               </div>
 
-              {/* Price */}
               <div className="mb-1 flex items-end gap-2">
                 <span className="text-3xl font-black text-white">
                   {doc.price > 0 ? doc.price : "Free"}
@@ -360,10 +355,8 @@ export default function DocumentDetail() {
                 )}
               </div>
 
-              {/* Action buttons */}
               <div className="mb-1">{renderActionButtons()}</div>
 
-              {/* Cart feedback message */}
               {cartMsg && cartMsgMap[cartMsg] && (
                 <p
                   className={`mt-2 text-center text-xs ${cartMsgMap[cartMsg].color}`}
@@ -372,14 +365,23 @@ export default function DocumentDetail() {
                 </p>
               )}
 
-              {/* Preview button */}
-              <button
-                onClick={() => setShowPreview(true)}
-                className="mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 py-3 font-semibold text-white transition hover:bg-white/10"
-              >
-                <ExternalLink className="h-4 w-4" />
-                Xem trước tài liệu
-              </button>
+              {canAccessFull ? (
+                <button
+                  onClick={() => navigate(`/documentReading/${doc._id}`)}
+                  className="mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-purple-500/40 bg-purple-500/10 py-3 font-semibold text-purple-300 transition hover:bg-purple-500/20"
+                >
+                  <BookOpen className="h-4 w-4" />
+                  Đọc tài liệu
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowPreview(true)}
+                  className="mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 py-3 font-semibold text-white transition hover:bg-white/10"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Xem trước tài liệu
+                </button>
+              )}
 
               <div className="my-5 border-t border-white/10" />
 
@@ -400,7 +402,6 @@ export default function DocumentDetail() {
               </div>
             </div>
 
-            {/* Author card */}
             <div className="rounded-xl border border-white/10 bg-white/5 p-6 backdrop-blur-md">
               <div className="mb-4 flex items-center gap-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-purple-400 to-blue-500 font-bold text-white">
