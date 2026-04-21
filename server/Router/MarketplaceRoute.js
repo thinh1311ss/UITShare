@@ -23,5 +23,10 @@ router.get(
   authMiddleware.isAuthentication,
   marketplaceController.checkAccess,
 );
+router.post(
+  "/donate",
+  authMiddleware.isAuthentication,
+  marketplaceController.donateToAuthor,
+);
 
 module.exports = router;
