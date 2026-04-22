@@ -46,7 +46,6 @@ const PersonalInfo = () => {
             coverImage: response.data.coverImage || "",
           });
 
-          toast.success("Cập nhật thông tin thành công");
         }
       } catch (error) {
         console.log(error);
@@ -54,37 +53,38 @@ const PersonalInfo = () => {
     };
     getUserId();
   }, [userId]);
-
+  
   const handleClick = (type) => {
     typeUpload.current = type;
     clickInput.current.click();
   };
-
+  
   const handleUpdateUser = async (e) => {
     e.preventDefault();
-
+    
     try {
       const formData = new FormData();
-
+      
       formData.append("userName", formInput.userName);
       formData.append("studentId", formInput.studentId);
       formData.append("bio", formInput.bio);
       formData.append("facebookLink", formInput.facebookLink);
-
+      
       if (img.avatar instanceof File) formData.append("avatar", img.avatar);
       if (img.coverImage instanceof File)
         formData.append("coverImage", img.coverImage);
-
+      
       const response = await axios.put(
         `/api/personal/updateUserInfo/${userId}`,
         formData,
       );
-
+      
       if (response.status === 200) {
         setImg({
           avatar: response.data.avatar,
           coverImage: response.data.coverImage,
         });
+        toast.success("Cập nhật thông tin thành công");
       }
     } catch (error) {
       console.log(error);
