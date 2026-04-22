@@ -69,12 +69,13 @@ export default function NFTInfo({ nft, nftHistory = [] }) {
       </div>
 
       {/* NFT Stats */}
-      <div className="mb-6 grid grid-cols-2 gap-5">
+      <div className="mb-6 grid grid-cols-3 gap-5">
         {[
           { label: "Giá", value: `${nft.price} ETH`, highlight: true },
           { label: "Token ID", value: `#${nft.tokenId}` },
           { label: "Hoa hồng tác giả", value: `${nft.royaltyPercent ?? 0}%` },
           { label: "Tổng số bản", value: `${nft.totalSupply} bản` },
+          { label: "Số bản còn lại", value: `${nft.remainingSupply ?? 0} bản` },
         ].map((item) => (
           <div key={item.label}>
             <p className="mb-1 text-xs text-gray-500">{item.label}</p>

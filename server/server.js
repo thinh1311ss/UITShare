@@ -10,6 +10,7 @@ const authorRoute = require("./Router/AuthorRoute");
 const marketplaceRoute = require("./Router/MarketplaceRoute");
 const listingRoute = require("./Router/ListingRoute");
 const walletRoute = require("./Router/WalletRoute");
+const transactionRoute = require("./Router/TransactionRoute");
 
 //cors middleware for all request
 app.use(
@@ -34,6 +35,7 @@ app.use("/api/author", authorRoute);
 app.use("/api/marketplace", marketplaceRoute);
 app.use("/api/listing", listingRoute);
 app.use("/api/wallet", walletRoute);
+app.use("/api/transactions", transactionRoute);
 
 app.listen(process.env.PORT, function () {
   console.log("server is running");

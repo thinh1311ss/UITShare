@@ -10,7 +10,7 @@ const getActiveListing = async (req, res) => {
     }
 
     const listing = await listingModel
-      .findOne({ document: documentId, status: "active" })
+      .findOne({ document: documentId, status: "active", amount: { $gt: 0 } })
       .select("orderId price amount");
 
     if (!listing) {

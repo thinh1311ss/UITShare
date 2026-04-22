@@ -78,22 +78,25 @@ export default function Cart() {
   };
 
   const fetchOrderId = async (documentId) => {
+    console.log("Fetching listing for documentId:", documentId);
     const res = await axios.get(`/api/listing/active/${documentId}`);
-    if (!res.data?.orderId) throw new Error("Không tìm thấy listing active");
+    console.log("Listing response:", res.data);
+    if (!res.data?.orderId) throw new Error("Không có listing active");
     return { orderId: res.data.orderId, price: res.data.price };
   };
 
   const handleCheckout = async () => {
     setCheckoutStep(CHECKOUT_STEP.CHECKING);
 
-    const token = localStorage.getItem("access_token");
     let walletAddress = null;
     try {
-      walletAddress = jwtDecode(token)?.walletAddress;
+      const { data } = await axios.get(`/api/wallet/walletInfo/${userId}`);
+      walletAddress = data.connected ? data.walletAddress : null;
     } catch {
       walletAddress = null;
     }
-    if (!walletAddress || walletAddress === "null" || walletAddress === "") {
+
+    if (!walletAddress) {
       setCheckoutStep(CHECKOUT_STEP.IDLE);
       setWalletModal(true);
       return;

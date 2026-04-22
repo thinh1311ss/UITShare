@@ -11,11 +11,13 @@ const MARKETPLACE_ABI = [
   "function cancelOrder(uint256 orderId_) external",
   "function executeOrder(uint256 orderId_) external payable",
   "function transferWithRoyalty(address to_, uint256 tokenId_, uint256 amount_, uint256 transferValue_) external payable",
+  "function donateToSeller(address seller_) external payable",
   "function orders(uint256) view returns (address seller, uint256 tokenId, uint256 amount, uint256 price, bool active)",
   "event OrderAdded(uint256 indexed orderId, address indexed seller, uint256 indexed tokenId, uint256 amount, uint256 price)",
   "event OrderCancelled(uint256 indexed orderId)",
   "event OrderMatched(uint256 indexed orderId, address indexed seller, address indexed buyer, uint256 price, uint256 marketplaceFee, uint256 royaltyAmount)",
   "event TransferWithRoyalty(address indexed from, address indexed to, uint256 indexed tokenId, uint256 amount, uint256 royaltyAmount)",
+  "event Donated(address indexed donor, address indexed recipient, uint256 amount)",
 ];
 
 //  Helpers
@@ -39,6 +41,23 @@ const parseEventFromReceipt = (receipt, eventName) => {
       const parsed = iface.parseLog(log);
       if (parsed?.name === eventName) return parsed.args;
     } catch (_) {}
+  }
+  return null;
+};
+
+// maxAttempts=8, delay=2s → chờ tối đa ~14s
+const getReceiptWithRetry = async (
+  provider,
+  txHash,
+  maxAttempts = 8,
+  delayMs = 2000,
+) => {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const receipt = await provider.getTransactionReceipt(txHash);
+    if (receipt) return receipt;
+    if (attempt < maxAttempts) {
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
   }
   return null;
 };
@@ -106,13 +125,13 @@ const buyDocument = async (req, res) => {
       return res.status(400).json({ message: "Thiếu orderId hoặc txHash" });
     }
 
-    // 1. Chống replay: txHash không được xử lý 2 lần
+    // 1. Chống replay
     const existingTx = await transactionModel.findOne({ txHash });
     if (existingTx) {
       return res.status(409).json({ message: "Transaction này đã được xử lý" });
     }
 
-    // 2. Kiểm tra listing trong DB
+    // 2. Kiểm tra listing
     const listing = await listingModel
       .findOne({ orderId, status: "active" })
       .populate("document");
@@ -150,14 +169,14 @@ const buyDocument = async (req, res) => {
         .json({ message: "Bạn đã sở hữu tài liệu này rồi" });
     }
 
-    // 6. Verify transaction trên blockchain
+    // 6. Verify transaction trên blockchain (retry để tránh RPC chưa index kịp)
     const provider = getProvider();
-    const receipt = await provider.getTransactionReceipt(txHash);
-
+    const receipt = await getReceiptWithRetry(provider, txHash);
     if (!receipt) {
-      return res
-        .status(400)
-        .json({ message: "Không tìm thấy transaction trên blockchain" });
+      return res.status(400).json({
+        message:
+          "Không tìm thấy transaction trên blockchain. Vui lòng thử lại sau.",
+      });
     }
     if (receipt.status !== 1) {
       return res
@@ -183,7 +202,7 @@ const buyDocument = async (req, res) => {
         .json({ message: "Transaction không được gửi từ ví của bạn" });
     }
 
-    // 9. Parse event OrderMatched để lấy fee + royalty
+    // 9. Parse event OrderMatched
     const iface = new ethers.Interface(MARKETPLACE_ABI);
     let marketplaceFee = 0n;
     let royaltyPaid = 0n;
@@ -206,20 +225,42 @@ const buyDocument = async (req, res) => {
     }
 
     const document = listing.document;
+    const quantityBought = 1;
 
-    // 10. Cập nhật DB
-    listing.status = "sold";
-    listing.soldAt = new Date();
+    // 10. Cập nhật listing amount
+    listing.amount = listing.amount - quantityBought;
+    if (listing.amount <= 0) {
+      listing.status = "sold";
+      listing.soldAt = new Date();
+    }
     await listing.save();
 
+    // 11. Giảm remainingSupply + tăng downloadCount trong document
     await documentModel.findByIdAndUpdate(document._id, {
-      $inc: { remainingSupply: -listing.amount },
+      $inc: {
+        remainingSupply: -quantityBought,
+        downloadCount: quantityBought,
+      },
     });
 
+    // 12. Giảm NFT của seller
+    await nftModel.findOneAndUpdate(
+      { user: listing.seller, tokenId: listing.tokenId },
+      { $inc: { amount: -quantityBought } },
+    );
+
+    // 13. Xóa NFT seller nếu amount về 0
+    await nftModel.deleteOne({
+      user: listing.seller,
+      tokenId: listing.tokenId,
+      amount: { $lte: 0 },
+    });
+
+    // 14. Tăng NFT của buyer
     await nftModel.findOneAndUpdate(
       { user: buyerId, tokenId: listing.tokenId },
       {
-        $inc: { amount: listing.amount },
+        $inc: { amount: quantityBought },
         $setOnInsert: {
           user: buyerId,
           document: document._id,
@@ -230,6 +271,7 @@ const buyDocument = async (req, res) => {
       { upsert: true, new: true },
     );
 
+    // 15. Lưu transaction
     await transactionModel.create({
       fromUser: listing.seller,
       toUser: buyerId,
@@ -238,7 +280,7 @@ const buyDocument = async (req, res) => {
       document: document._id,
       tokenId: listing.tokenId,
       orderId,
-      quantity: listing.amount,
+      quantity: quantityBought,
       price: listing.price,
       marketplaceFee: Number(ethers.formatEther(marketplaceFee)),
       royaltyPaid: Number(ethers.formatEther(royaltyPaid)),
@@ -313,7 +355,6 @@ const cancelListing = async (req, res) => {
     listing.cancelledAt = new Date();
     await listing.save();
 
-    // Hoàn lại remainingSupply cho document
     await documentModel.findByIdAndUpdate(listing.document, {
       $inc: { remainingSupply: listing.amount },
     });
@@ -354,7 +395,7 @@ const transferNFT = async (req, res) => {
       return res.status(400).json({ message: "Thiếu thông tin transfer" });
     }
 
-    // 1. Chống replay: txHash không được xử lý 2 lần
+    // 1. Chống replay
     const existingTx = await transactionModel.findOne({ txHash });
     if (existingTx) {
       return res.status(409).json({ message: "Transaction này đã được xử lý" });
@@ -362,12 +403,13 @@ const transferNFT = async (req, res) => {
 
     // 2. Verify transaction on-chain
     const provider = getProvider();
-    const receipt = await provider.getTransactionReceipt(txHash);
+    const receipt = await getReceiptWithRetry(provider, txHash);
 
     if (!receipt) {
-      return res
-        .status(400)
-        .json({ message: "Không tìm thấy transaction trên blockchain" });
+      return res.status(400).json({
+        message:
+          "Không tìm thấy transaction trên blockchain. Vui lòng thử lại sau.",
+      });
     }
 
     if (receipt.status !== 1) {
@@ -386,7 +428,7 @@ const transferNFT = async (req, res) => {
       });
     }
 
-    // 4. Parse event TransferWithRoyalty để verify params
+    // 4. Parse event TransferWithRoyalty
     const iface = new ethers.Interface(MARKETPLACE_ABI);
     let eventArgs = null;
 
@@ -529,10 +571,122 @@ const checkAccess = async (req, res) => {
   }
 };
 
+// donateToAuthor
+const donateToAuthor = async (req, res) => {
+  try {
+    const { txHash, toAddress, message } = req.body;
+    const fromUserId = req.userId;
+
+    if (!txHash || !toAddress) {
+      return res.status(400).json({ message: "Thiếu txHash hoặc toAddress" });
+    }
+
+    // 1. Chống replay
+    const existingTx = await transactionModel.findOne({ txHash });
+    if (existingTx) {
+      return res.status(409).json({ message: "Transaction này đã được xử lý" });
+    }
+
+    // 2. Verify transaction on-chain (retry để tránh RPC chưa index kịp)
+    const provider = getProvider();
+    const receipt = await getReceiptWithRetry(provider, txHash);
+
+    if (!receipt) {
+      return res.status(400).json({
+        message:
+          "Không tìm thấy transaction trên blockchain. Vui lòng thử lại sau.",
+      });
+    }
+    if (receipt.status !== 1) {
+      return res
+        .status(400)
+        .json({ message: "Transaction đã thất bại trên blockchain" });
+    }
+
+    // 3. Verify tx gọi đúng marketplace contract
+    if (
+      receipt.to?.toLowerCase() !==
+      process.env.MARKETPLACE_CONTRACT_ADDRESS.toLowerCase()
+    ) {
+      return res.status(400).json({
+        message: "Transaction không tương tác với marketplace contract",
+      });
+    }
+
+    // 4. Parse event Donated
+    const iface = new ethers.Interface(MARKETPLACE_ABI);
+    let donatedArgs = null;
+
+    for (const log of receipt.logs) {
+      try {
+        const parsed = iface.parseLog(log);
+        if (
+          parsed?.name === "Donated" &&
+          parsed.args.recipient.toLowerCase() === toAddress.toLowerCase()
+        ) {
+          donatedArgs = parsed.args;
+          break;
+        }
+      } catch (_) {}
+    }
+
+    if (!donatedArgs) {
+      return res.status(400).json({
+        message: "Không tìm thấy event Donated hợp lệ trong transaction",
+      });
+    }
+
+    // 5. Verify donor khớp với ví của user đang request
+    const fromUser = await userModel.findById(fromUserId);
+    if (!fromUser?.walletAddress) {
+      return res.status(400).json({ message: "Tài khoản chưa liên kết ví" });
+    }
+    if (
+      fromUser.walletAddress.toLowerCase() !== donatedArgs.donor.toLowerCase()
+    ) {
+      return res.status(403).json({
+        message: "Địa chỉ ví không khớp với người gửi trong transaction",
+      });
+    }
+
+    // 6. Tìm user nhận donate theo walletAddress
+    const toUser = await userModel.findOne({
+      walletAddress: toAddress.toLowerCase(),
+    });
+
+    // 7. Lưu transaction
+    const donatedAmountEth = Number(ethers.formatEther(donatedArgs.amount));
+
+    await transactionModel.create({
+      fromUser: fromUserId,
+      toUser: toUser?._id ?? null,
+      fromAddress: fromUser.walletAddress,
+      toAddress: toAddress.toLowerCase(),
+      price: donatedAmountEth,
+      quantity: 1,
+      type: "donate",
+      txHash,
+      blockNumber: receipt.blockNumber,
+      status: "success",
+      ...(message?.trim() && { donateMessage: message.trim() }),
+    });
+
+    return res.status(200).json({
+      message: "Donate thành công",
+      txHash,
+      amount: donatedAmountEth,
+    });
+  } catch (error) {
+    console.error("[donateToAuthor]", error);
+    return res.status(500).json({ message: error.message || "Lỗi server" });
+  }
+};
+
 module.exports = {
   createListing,
   buyDocument,
   cancelListing,
   transferNFT,
   checkAccess,
+  donateToAuthor,
 };

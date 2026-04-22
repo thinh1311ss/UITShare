@@ -6,14 +6,29 @@ import {
   useCallback,
 } from "react";
 import axios from "../common";
+import { jwtDecode } from "jwt-decode";
 
 const CartContext = createContext(null);
-const CART_STORAGE_KEY = "uit_share_cart";
+
+const getCartKey = (userId) =>
+  userId ? `uit_share_cart_${userId}` : "uit_share_cart_guest";
+
+const getCurrentUserId = () => {
+  try {
+    const token = localStorage.getItem("access_token");
+    if (!token || token === "undefined") return null;
+    return jwtDecode(token)?._id ?? null;
+  } catch {
+    return null;
+  }
+};
 
 export function CartProvider({ children }) {
+  const [userId, setUserId] = useState(() => getCurrentUserId());
   const [cartItems, setCartItems] = useState(() => {
     try {
-      const stored = localStorage.getItem(CART_STORAGE_KEY);
+      const uid = getCurrentUserId();
+      const stored = localStorage.getItem(getCartKey(uid));
       return stored ? JSON.parse(stored) : [];
     } catch {
       return [];
@@ -22,19 +37,45 @@ export function CartProvider({ children }) {
 
   useEffect(() => {
     try {
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
+      localStorage.setItem(getCartKey(userId), JSON.stringify(cartItems));
     } catch {}
-  }, [cartItems]);
+  }, [cartItems, userId]);
 
   useEffect(() => {
     const handleStorageChange = (e) => {
-      if (e.key === "access_token" && !e.newValue) {
-        setCartItems([]);
-        localStorage.removeItem(CART_STORAGE_KEY);
+      if (e.key === "access_token") {
+        const newUserId = getCurrentUserId();
+
+        if (!e.newValue) {
+          // Đăng xuất: xóa giỏ hàng hiện tại, reset userId
+          setCartItems([]);
+          setUserId(null);
+        } else if (newUserId !== userId) {
+          // Đăng nhập tài khoản khác: load giỏ hàng của user mới
+          setUserId(newUserId);
+          try {
+            const stored = localStorage.getItem(getCartKey(newUserId));
+            setCartItems(stored ? JSON.parse(stored) : []);
+          } catch {
+            setCartItems([]);
+          }
+        }
       }
     };
+
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
+  }, [userId]);
+
+  const reloadCartForCurrentUser = useCallback(() => {
+    const newUserId = getCurrentUserId();
+    setUserId(newUserId);
+    try {
+      const stored = localStorage.getItem(getCartKey(newUserId));
+      setCartItems(stored ? JSON.parse(stored) : []);
+    } catch {
+      setCartItems([]);
+    }
   }, []);
 
   const addToCart = useCallback(
@@ -52,7 +93,7 @@ export function CartProvider({ children }) {
           }
         }
       } catch {
-        // Nếu API lỗi thì vẫn cho thêm vào giỏ, backend sẽ  lúc mua
+        // Nếu API lỗi thì vẫn cho thêm vào giỏ, backend sẽ check lúc mua
       }
 
       setCartItems((prev) => [...prev, doc]);
@@ -67,8 +108,8 @@ export function CartProvider({ children }) {
 
   const clearCart = useCallback(() => {
     setCartItems([]);
-    localStorage.removeItem(CART_STORAGE_KEY);
-  }, []);
+    localStorage.removeItem(getCartKey(userId));
+  }, [userId]);
 
   const removeMultipleFromCart = useCallback((docIds) => {
     setCartItems((prev) => prev.filter((item) => !docIds.includes(item._id)));
@@ -82,6 +123,7 @@ export function CartProvider({ children }) {
         removeFromCart,
         clearCart,
         removeMultipleFromCart,
+        reloadCartForCurrentUser,
       }}
     >
       {children}

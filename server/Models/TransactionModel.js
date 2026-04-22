@@ -86,6 +86,12 @@ const TransactionSchema = new mongoose.Schema({
     index: true,
   },
 
+  donateMessage: {
+    type: String,
+    maxlength: 200,
+    default: null,
+  },
+
   txHash: {
     type: String,
     required: true,

@@ -1,7 +1,6 @@
 const User = require("../Models/UserModel");
 const axios = require("axios");
 
-// ─── PUT /api/wallet/updateWallet/:userId ────────────────────────────────────
 const updateWallet = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -18,31 +17,40 @@ const updateWallet = async (req, res) => {
         .json({ message: "Invalid Ethereum wallet address" });
     }
 
+    // Check if another user already owns this wallet
+    const existing = await User.findOne({ walletAddress });
+    if (existing && existing._id.toString() !== userId) {
+      return res.status(409).json({
+        message: "Ví này đã được liên kết với tài khoản khác.",
+      });
+    }
+
     const user = await User.findByIdAndUpdate(
       userId,
       { walletAddress },
-      { returnDocument: "after", select: "-password" },
+      { new: true, select: "-password" },
     );
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    console.log(
-      `[updateWallet] Saved address ${walletAddress} for user ${userId}`,
-    );
-
     return res.status(200).json({
       message: "Wallet address updated successfully",
       walletAddress: user.walletAddress,
     });
   } catch (error) {
+    // Catch any race-condition duplicate key errors that slip through
+    if (error.code === 11000) {
+      return res.status(409).json({
+        message: "Ví này đã được liên kết với tài khoản khác.",
+      });
+    }
     console.error("[updateWallet]", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
 
-// ─── DELETE /api/wallet/disconnectWallet/:userId ─────────────────────────────
 const disconnectWallet = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -58,18 +66,16 @@ const disconnectWallet = async (req, res) => {
   }
 };
 
-// ─── GET /api/wallet/walletInfo/:userId ──────────────────────────────────────
 const getWalletInfo = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    // ── 1. Lấy wallet address từ DB ──────────────────────────────────────────
+    // 1. Lấy wallet address từ DB
     const user = await User.findById(userId).select("walletAddress");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
     if (!user.walletAddress) {
-      console.log(`[getWalletInfo] User ${userId} has no wallet address`);
       return res.status(200).json({ connected: false, walletAddress: null });
     }
 
@@ -77,9 +83,8 @@ const getWalletInfo = async (req, res) => {
     const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY;
     const ETHERSCAN_BASE = "https://api.etherscan.io/v2/api";
 
-    // ── 2. Kiểm tra API key ───────────────────────────────────────────────────
+    //  2. Kiểm tra API key
     if (!ETHERSCAN_API_KEY) {
-      console.warn("[getWalletInfo] ETHERSCAN_API_KEY is not set in .env");
       return res.status(200).json({
         connected: true,
         walletAddress: address,
@@ -91,9 +96,7 @@ const getWalletInfo = async (req, res) => {
       });
     }
 
-    console.log(`[getWalletInfo] Fetching Etherscan data for: ${address}`);
-
-    // ── 3. Gọi tuần tự cách nhau 400ms (tránh rate limit 3/sec free tier) ────
+    // 3. Gọi tuần tự cách nhau 400ms
     const delay = (ms) => new Promise((r) => setTimeout(r, ms));
     const BASE_PARAMS = { chainid: 11155111, apikey: ETHERSCAN_API_KEY };
 
@@ -138,18 +141,7 @@ const getWalletInfo = async (req, res) => {
       sort: "desc",
     });
 
-    // ── Debug log ─────────────────────────────────────────────────────────────
-    console.log("[getWalletInfo] Balance →", JSON.stringify(balanceRes.data));
-    console.log(
-      "[getWalletInfo] TxList →",
-      `status=${txListRes.data.status}, count=${txListRes.data.result?.length}`,
-    );
-    console.log(
-      "[getWalletInfo] NFT    →",
-      `status=${nftRes.data.status}, count=${nftRes.data.result?.length}`,
-    );
-
-    // ── 4. Xử lý Balance ─────────────────────────────────────────────────────
+    //4. Xử lý Balance
     let balanceEth = "0";
     {
       const { status, result, message } = balanceRes.data;
@@ -160,7 +152,7 @@ const getWalletInfo = async (req, res) => {
       }
     }
 
-    // ── 5. Xử lý Transactions ────────────────────────────────────────────────
+    // 5. Xử lý Transactions
     let transactions = [];
     {
       const { status, result, message } = txListRes.data;
@@ -187,7 +179,7 @@ const getWalletInfo = async (req, res) => {
       }
     }
 
-    // ── 6. Xử lý NFTs ────────────────────────────────────────────────────────
+    // 6. Xử lý NFTs
     let nftCount = 0;
     let nfts = [];
     {
