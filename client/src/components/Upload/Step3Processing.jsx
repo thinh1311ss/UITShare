@@ -1,4 +1,4 @@
-import { FiCheckCircle, FiUploadCloud, FiLoader } from "react-icons/fi";
+import { FiCheckCircle, FiUploadCloud, FiCheck } from "react-icons/fi";
 import { Link } from "react-router";
 
 const Step3Processing = ({ onReset }) => {
@@ -20,7 +20,7 @@ const Step3Processing = ({ onReset }) => {
       </p>
 
       <div className="flex justify-center items-center mb-8 h-48">
-        <FiLoader className="w-20 h-20 text-purple-400 animate-spin [animation-duration:3s]" />
+        <FiCheck className="w-20 h-20 text-purple-400" />
       </div>
 
       <div className="flex items-center gap-2 bg-green-500/10 text-green-400 border border-green-500/20 px-4 py-2 rounded-lg text-sm font-medium mb-8 text-left backdrop-blur-md">

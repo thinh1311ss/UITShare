@@ -18,7 +18,11 @@ const updateUserInfo = async (req, res) => {
     const { userId } = req.params;
     const { userName, studentId, bio, facebookLink } = req.body;
 
-    const updateData = { userName, studentId, bio, facebookLink };
+    const updateData = { userName, bio, facebookLink };
+
+    if (studentId !== undefined && studentId !== null && studentId !== '') {
+      updateData.studentId = studentId;
+    }
 
     if (req.files?.avatar) {
       updateData.avatar = `http://localhost:8080/uploads/avatar/${req.files.avatar[0].filename}`;
@@ -27,11 +31,27 @@ const updateUserInfo = async (req, res) => {
       updateData.coverImage = `http://localhost:8080/uploads/coverImage/${req.files.coverImage[0].filename}`;
     }
 
-    const updatedUser = await userModel.findByIdAndUpdate(userId, updateData, {
-      new: true,
-    });
+    const updatedUser = await userModel.findByIdAndUpdate(userId, updateData, { new: true });
 
-    res.status(200).json(updatedUser);
+    const newToken = jwt.sign(
+      {
+        _id: updatedUser._id,
+        userName: updatedUser.userName,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        status: updatedUser.status,
+        avatar: updatedUser.avatar,
+        coverImage: updatedUser.coverImage,
+        studentId: updatedUser.studentId,
+        bio: updatedUser.bio,
+        facebookLink: updatedUser.facebookLink,
+        walletAddress: updatedUser.walletAddress,
+      },
+      process.env.SECRET_JWT,
+      { expiresIn: 3600 }
+    );
+
+    res.status(200).json({ ...updatedUser.toObject(), newToken });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

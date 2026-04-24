@@ -65,7 +65,9 @@ const PersonalInfo = () => {
       const formData = new FormData();
 
       formData.append("userName", formInput.userName);
-      formData.append("studentId", formInput.studentId);
+      if (formInput.studentId) {
+        formData.append("studentId", formInput.studentId);
+      }
       formData.append("bio", formInput.bio);
       formData.append("facebookLink", formInput.facebookLink);
 
@@ -79,12 +81,19 @@ const PersonalInfo = () => {
       );
 
       if (response.status === 200) {
-        setImg({
-          avatar: response.data.avatar,
-          coverImage: response.data.coverImage,
-        });
-        toast.success("Cập nhật thông tin thành công");
+      if (response.data.newToken) {
+        localStorage.setItem("access_token", response.data.newToken);
+        window.dispatchEvent(new Event("token-updated"));
       }
+      setUser(response.data);
+      setImg((prev) => ({
+        avatar: response.data.avatar,
+        coverImage: response.data.coverImage,
+        avatarPreview: prev.avatarPreview || "",
+        coverImagePreview: prev.coverImagePreview || "",
+      }));
+      toast.success("Cập nhật thành công");
+    }
     } catch (error) {
       console.log(error);
     }
