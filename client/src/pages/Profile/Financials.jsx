@@ -8,6 +8,7 @@ import TransactionTable from "../../components/Profile/TransactionTable";
 import WalletCard from "../../components/Profile/WalletCard";
 import { useParams } from "react-router";
 import axios from "../../common";
+import { FiCreditCard, FiAlertTriangle, FiX } from "react-icons/fi";
 
 const DEFAULT_WALLET_INFO = {
   balance: "0",
