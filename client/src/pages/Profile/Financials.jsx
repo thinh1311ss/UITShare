@@ -14,6 +14,7 @@ import TransactionTable from "../../components/Profile/TransactionTable";
 import WalletCard from "../../components/Profile/WalletCard";
 import { useParams } from "react-router";
 import axios from "../../common";
+import { FiCreditCard, FiAlertTriangle, FiX } from "react-icons/fi";
 
 // Trạng thái ví mặc định
 const DEFAULT_WALLET_INFO = {
@@ -35,6 +36,7 @@ const Financials = () => {
   const [isLoadingWallet, setIsLoadingWallet] = useState(false);
   const [walletError, setWalletError] = useState(null);
 
+  const [isInitializing, setIsInitializing] = useState(true);
   const [isWalletLinked, setIsWalletLinked] = useState(false);
 
   const prevAddressRef = useRef(null);
@@ -48,31 +50,31 @@ const Financials = () => {
     : "Chưa kết nối";
   const isWrongNetwork = isConnected && chainId !== sepolia.id;
 
-  const fetchWalletInfo = useCallback(async () => {
-    if (!userId) return;
-    setIsLoadingWallet(true);
-    setWalletError(null);
-    try {
-      const { data } = await axios.get(`/api/wallet/walletInfo/${userId}`);
-      if (data.connected) {
-        setIsWalletLinked(true);
-        setWalletInfo({
-          balance: data.balance,
-          nftCount: data.nftCount,
-          nfts: data.nfts,
-          transactions: data.transactions,
-        });
-      } else {
-        setIsWalletLinked(false);
-        setWalletInfo(DEFAULT_WALLET_INFO);
-      }
-    } catch (error) {
-      console.error("[fetchWalletInfo]", error);
-      setWalletError("Không thể tải thông tin ví. Vui lòng thử lại.");
-    } finally {
-      setIsLoadingWallet(false);
+  // Sửa fetchWalletInfo
+const fetchWalletInfo = useCallback(async () => {
+  setIsLoadingWallet(true);
+  setWalletError(null);
+  try {
+    const { data } = await axios.get(`/api/wallet/walletInfo/${userId}`);
+    if (data.connected) {
+      setIsWalletLinked(true);
+      setWalletInfo({
+        balance: data.balance,
+        nftCount: data.nftCount,
+        nfts: data.nfts,
+        transactions: data.transactions,
+      });
+    } else {
+      setIsWalletLinked(false);
+      setWalletInfo(DEFAULT_WALLET_INFO);
     }
-  }, [userId]);
+  } catch (error) {
+    setWalletError("Không thể tải thông tin ví. Vui lòng thử lại.");
+  } finally {
+    setIsLoadingWallet(false);
+    setIsInitializing(false); // ← xong rồi mới cho render nút
+  }
+}, [userId]);
 
   useEffect(() => {
     fetchWalletInfo();
@@ -144,25 +146,51 @@ const Financials = () => {
           </p>
         </div>
 
-        {!isWalletLinked ? (
-          // Chưa link trên server → luôn hiện nút kết nối
-          // (kể cả khi wagmi đã auto-reconnect từ localStorage)
+        {isInitializing ? (
+          <div className="h-10 w-44 animate-pulse rounded-xl bg-white/10" />
+        ) : !isWalletLinked ? (
           <button
-            onClick={() => {
+            onClick={async () => {
               userInitiatedConnect.current = true;
+
+              if (address) {
+                try {
+                  await axios.put(`/api/wallet/updateWallet/${userId}`, {
+                    walletAddress: address,
+                  });
+                  await new Promise((r) => setTimeout(r, 1500));
+                  await fetchWalletInfo();
+                } catch (error) {
+                  setWalletError(
+                    error.response?.data?.message || "Không thể liên kết ví."
+                  );
+                }
+                return;
+              }
+
               connect({ connector: injected() });
             }}
+            className="flex items-center gap-2 rounded-xl bg-purple-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-purple-700"
           >
+            <FiCreditCard className="h-4 w-4" />
             Kết nối ví MetaMask
           </button>
         ) : isWrongNetwork ? (
-          // Đã link nhưng sai mạng → nhắc đổi sang Sepolia
-          <button onClick={() => switchChain({ chainId: sepolia.id })}>
+          <button
+            onClick={() => switchChain({ chainId: sepolia.id })}
+            className="flex items-center gap-2 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-5 py-2.5 text-sm font-semibold text-yellow-400 transition-colors hover:bg-yellow-500/20"
+          >
+            <FiAlertTriangle className="h-4 w-4" />
             Sai mạng! Đổi sang Sepolia
           </button>
         ) : (
-          // Đã link đúng mạng → cho phép ngắt kết nối
-          <button onClick={handleDisconnect}>Ngắt kết nối</button>
+          <button
+            onClick={handleDisconnect}
+            className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-5 py-2.5 text-sm font-semibold text-red-400 transition-colors hover:bg-red-500/20"
+          >
+            <FiX className="h-4 w-4" />
+            Ngắt kết nối
+          </button>
         )}
       </div>
 

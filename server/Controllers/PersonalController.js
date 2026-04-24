@@ -21,10 +21,10 @@ const updateUserInfo = async (req, res) => {
     const updateData = { userName, studentId, bio, facebookLink };
 
     if (req.files?.avatar) {
-      updateData.avatar = `http://localhost:5000/uploads/avatar/${req.files.avatar[0].filename}`;
+      updateData.avatar = `http://localhost:8080/uploads/avatar/${req.files.avatar[0].filename}`;
     }
     if (req.files?.coverImage) {
-      updateData.coverImage = `http://localhost:5000/uploads/coverImage/${req.files.coverImage[0].filename}`;
+      updateData.coverImage = `http://localhost:8080/uploads/coverImage/${req.files.coverImage[0].filename}`;
     }
 
     const updatedUser = await userModel.findByIdAndUpdate(userId, updateData, {

@@ -122,13 +122,15 @@ const PersonalInfo = () => {
       [typeUpload.current]: file,
       [`${typeUpload.current}Preview`]: URL.createObjectURL(file),
     }));
+
+    e.target.value = null
   };
 
   return (
     <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 shadow-sm backdrop-blur-md">
       <div className="relative h-48 rounded-t-2xl bg-white/10">
         <img
-          src={img.coverImagePreview || img.coverImage}
+          src={img.coverImagePreview || img.coverImage || undefined}
           alt="Cover"
           className="h-full w-full object-cover"
         />
@@ -142,7 +144,7 @@ const PersonalInfo = () => {
         <div className="absolute -bottom-12 left-1/2 -translate-x-1/2">
           <div className="relative">
             <img
-              src={img.avatarPreview || img.avatar}
+              src={img.avatarPreview || img.avatar || undefined}
               alt="Profile avatar"
               className="h-24 w-24 rounded-full border-4 border-[#050816] object-cover shadow-md hover:cursor-pointer"
               onClick={() => handleClick("avatar")}
@@ -217,7 +219,7 @@ const PersonalInfo = () => {
                   rows="4"
                   value={formInput?.bio}
                   placeholder="Giới thiệu ngắn gọn (VD: Chuyên share tài liệu điểm cao môn Đại cương...)"
-                  className="w-full resize-y rounded-xl border border-purple-400 bg-transparent px-4 py-3 text-sm text-white transition-all outline-none placeholder:text-gray-500 focus:border-purple-400 focus:ring-0"
+                  className="w-full resize-y rounded-xl border border-white/20 bg-transparent px-4 py-3 text-sm text-white transition-all outline-none placeholder:text-gray-500 focus:border-purple-400 focus:ring-1 focus:ring-purple-400/50"
                   onChange={handleChangeForm}
                 ></textarea>
               </div>
@@ -232,7 +234,7 @@ const PersonalInfo = () => {
                   Facebook
                 </label>
                 <Input
-                  id="socialLink"
+                  id="facebookLink"
                   value={formInput?.facebookLink}
                   placeholder="Link Facebook (Hỗ trợ người mua tài liệu)"
                   onChange={handleChangeForm}
