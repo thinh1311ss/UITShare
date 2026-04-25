@@ -202,7 +202,8 @@ const ResellModal = ({ doc, onClose, onSuccess }) => {
               </div>
 
               <p className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-xs text-amber-300">
-                Giá bán bằng giá gốc của tác giả. Trong thời gian bán lại, bạn{" "}
+                Giá bán bằng giá gốc của tác giả và tác giả sẽ nhận được phần
+                trăm từ doanh thu bán lại. Trong thời gian bán lại, bạn{" "}
                 <span className="font-semibold">không thể đọc</span> tài liệu
                 này cho đến khi huỷ bán hoặc ai đó mua.
               </p>
@@ -582,7 +583,6 @@ export default function DocumentDetail() {
 
   // Action Buttons
   const renderActionButtons = () => {
-    // Đang bán lại → chỉ cho huỷ bán, không cho mua/đọc
     if (accessStatus === ACCESS_STATUS.LISTED) {
       return (
         <div className="flex flex-col gap-2">

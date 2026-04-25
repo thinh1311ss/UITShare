@@ -490,7 +490,7 @@ const AuthorDetail = () => {
                   Chưa có tài liệu nào.
                 </p>
               ) : (
-                <div className="flex flex-wrap justify-between gap-4">
+                <div className="mx-auto flex w-11/12 flex-wrap gap-4">
                   {documents.map((doc) => (
                     <DocumentCard key={doc._id} {...doc} />
                   ))}
@@ -508,7 +508,7 @@ const AuthorDetail = () => {
                   Chưa có tài liệu nào đang bán lại.
                 </p>
               ) : (
-                <div className="flex flex-wrap gap-4">
+                <div className="mx-auto flex w-11/12 flex-wrap gap-4">
                   {resellListings.map((listing) => (
                     <div
                       key={listing._id}
