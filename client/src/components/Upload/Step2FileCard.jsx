@@ -6,17 +6,32 @@ import {
   FiDollarSign,
   FiCheck,
 } from "react-icons/fi";
+import { Listbox, Transition } from '@headlessui/react'
+import { Fragment, useState, useEffect } from 'react'
+import { fetchSubjects } from '../../api/api_test'
+
+const CATEGORIES = [
+  { id: "exam", label: "Đề thi / Đáp án" },
+  { id: "slide", label: "Slide bài giảng" },
+  { id: "assignment", label: "Bài tập / Thực hành" },
+  { id: "project", label: "Đồ án / Báo cáo" },
+];
 
 const Step2FileCard = ({
   item,
-  index,
   formData,
   updateForm,
-  handleClickApply,
   submit,
 }) => {
+  const selectedCategory = CATEGORIES.find((c) => c.id === formData.category) || null;
+  const [subjects, setSubjects] = useState([]);
+
+  useEffect(() => {
+    fetchSubjects().then(setSubjects).catch(console.error);
+  }, []);
+
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 shadow-sm backdrop-blur-md">
+    <div className="relative rounded-2xl border border-white/10 bg-white/5 p-6 shadow-sm backdrop-blur-md">
       {/* Header */}
       <div className="mb-6 flex items-center justify-between border-b border-white/10 pb-4">
         <div className="flex items-center gap-4 overflow-hidden">
@@ -34,51 +49,76 @@ const Step2FileCard = ({
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          className="flex shrink-0 cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:bg-white/10"
-          onClick={() => handleClickApply(index)}
-        >
-          <FiCopy className="h-4 w-4" />
-          {index === 0 ? (
-            <span className="hidden sm:inline">
-              Áp dụng cho tất cả các file
-            </span>
-          ) : (
-            <span className="hidden sm:inline">Sao chép từ file trên</span>
-          )}
-        </button>
       </div>
 
-      {/* Môn học */}
-      <div>
+      {/* Môn học — Dùng Headless UI Listbox */}
+      <div className="relative z-50">
         <label className="mb-2 block text-sm font-medium text-gray-300">
           Môn học
         </label>
-        <div className="relative">
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-            <FiBook className="text-gray-400" />
+        <Listbox
+          value={formData.subject}
+          onChange={(value) => updateForm("subject", value)}
+        >
+          <div className="relative mt-1">
+            <Listbox.Button
+              className={`relative w-full cursor-pointer rounded-xl border py-3 pl-10 pr-10 text-left text-sm transition-all focus:outline-none focus:ring-2 focus:ring-purple-400 ${
+                submit && !formData.subject
+                  ? "border-red-400 bg-red-500/10 text-white"
+                  : "border-white/20 bg-[#050816] text-white"
+              }`}
+            >
+              <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                <FiBook className="text-gray-400" />
+              </span>
+              <span className={`block truncate ${!formData.subject ? "text-gray-400" : ""}`}>
+                {formData.subject || "Chọn môn học..."}
+              </span>
+              <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                <FiChevronDown className="h-4 w-4 text-gray-400" />
+              </span>
+            </Listbox.Button>
+
+            <Transition
+              as={Fragment}
+              leave="transition ease-in duration-100"
+              leaveFrom="opacity-100"
+              leaveTo="opacity-0"
+            >
+              <Listbox.Options className="absolute mt-2 max-h-60 w-full overflow-auto rounded-xl border border-white/20 bg-[#050816]/95 py-2 shadow-2xl backdrop-blur-xl focus:outline-none custom-scrollbar">
+                {subjects.length === 0 ? (
+                  <li className="px-4 py-3 text-sm text-gray-500">Đang tải...</li>
+                ) : (
+                  subjects.map((subject) => (
+                    <Listbox.Option
+                      key={subject.id}
+                      value={`${subject.id} - ${subject.name}`}
+                      className={({ active }) =>
+                        `relative cursor-pointer select-none py-3 pl-10 pr-4 text-sm transition-colors ${
+                          active ? "bg-purple-500/20 text-purple-300" : "text-gray-300"
+                        }`
+                      }
+                    >
+                      {({ selected }) => (
+                        <>
+                          <span className={`block truncate ${selected ? "font-semibold text-white" : "font-normal"}`}>
+                            {subject.id} - {subject.name}
+                          </span>
+                          {selected ? (
+                            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-purple-400">
+                              <FiCheck className="h-4 w-4" />
+                            </span>
+                          ) : null}
+                        </>
+                      )}
+                    </Listbox.Option>
+                  ))
+                )}
+              </Listbox.Options>
+            </Transition>
           </div>
-          <input
-            type="text"
-            list="course-list"
-            name="subject"
-            value={formData.subject}
-            className={`w-full rounded-xl border py-3 pr-4 pl-10 text-sm text-white transition-all outline-none ${
-              submit && !formData.subject
-                ? "border-red-400 bg-red-500/10 focus:border-red-400 focus:ring-2 focus:ring-red-400"
-                : "border-white/20 bg-white/5 focus:border-purple-400 focus:ring-2 focus:ring-purple-400"
-            }`}
-            placeholder="Nhập mã môn hoặc đúp chuột để chọn..."
-            onChange={(e) => updateForm(index, e.target.name, e.target.value)}
-          />
-          <datalist id="course-list">
-            <option value="IT001 - Nhập môn lập trình" />
-            <option value="IT002 - Lập trình hướng đối tượng" />
-            <option value="IT003 - Cấu trúc dữ liệu và giải thuật" />
-            <option value="IT004 - Cơ sở dữ liệu" />
-          </datalist>
-        </div>
+        </Listbox>
+
         {submit && !formData.subject && (
           <span className="mt-1 block text-xs text-red-400">
             Môn học không được để trống
@@ -88,32 +128,67 @@ const Step2FileCard = ({
 
       {formData.subject?.trim().length > 0 && (
         <div className="animate-in slide-in-from-top-4 fade-in mt-6 space-y-6 duration-300">
-          {/* Loại tài liệu */}
-          <div>
+          {/* Loại tài liệu — Dùng Headless UI Listbox */}
+          <div className="relative z-40">
             <label className="mb-2 block text-sm font-medium text-gray-300">
               Loại tài liệu
             </label>
-            <div className="relative">
-              <select
-                name="category"
-                value={formData.category}
-                className={`w-full cursor-pointer appearance-none rounded-xl border bg-[#050816] px-4 py-3 pr-10 text-sm text-white transition-all outline-none ${
-                  submit && !formData.category
-                    ? "border-red-400 bg-red-500/10 focus:border-red-400 focus:ring-2 focus:ring-red-400"
-                    : "border-white/20 focus:border-purple-400 focus:ring-2 focus:ring-purple-400"
-                }`}
-                onChange={(e) =>
-                  updateForm(index, e.target.name, e.target.value)
-                }
-              >
-                <option value="">Chọn phân loại...</option>
-                <option value="exam">Đề thi / Đáp án</option>
-                <option value="slide">Slide bài giảng</option>
-                <option value="assignment">Bài tập / Thực hành</option>
-                <option value="project">Đồ án / Báo cáo</option>
-              </select>
-              <FiChevronDown className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-gray-400" />
-            </div>
+            <Listbox
+              value={selectedCategory}
+              onChange={(cat) => updateForm("category", cat.id)}
+            >
+              <div className="relative mt-1">
+                <Listbox.Button
+                  className={`relative w-full cursor-pointer rounded-xl border py-3 pl-4 pr-10 text-left text-sm transition-all focus:outline-none focus:ring-2 focus:ring-purple-400 ${
+                    submit && !formData.category
+                      ? "border-red-400 bg-red-500/10 text-white"
+                      : "border-white/20 bg-[#050816] text-white"
+                  }`}
+                >
+                  <span className={`block truncate ${!selectedCategory ? "text-gray-400" : ""}`}>
+                    {selectedCategory ? selectedCategory.label : "Chọn phân loại..."}
+                  </span>
+                  <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                    <FiChevronDown className="h-4 w-4 text-gray-400" />
+                  </span>
+                </Listbox.Button>
+
+                <Transition
+                  as={Fragment}
+                  leave="transition ease-in duration-100"
+                  leaveFrom="opacity-100"
+                  leaveTo="opacity-0"
+                >
+                  <Listbox.Options className="absolute mt-2 max-h-60 w-full overflow-auto rounded-xl border border-white/20 bg-[#050816]/95 py-2 shadow-2xl backdrop-blur-xl focus:outline-none custom-scrollbar">
+                    {CATEGORIES.map((cat) => (
+                      <Listbox.Option
+                        key={cat.id}
+                        value={cat}
+                        className={({ active }) =>
+                          `relative cursor-pointer select-none py-3 pl-10 pr-4 text-sm transition-colors ${
+                            active ? "bg-purple-500/20 text-purple-300" : "text-gray-300"
+                          }`
+                        }
+                      >
+                        {({ selected }) => (
+                          <>
+                            <span className={`block truncate ${selected ? "font-semibold text-white" : "font-normal"}`}>
+                              {cat.label}
+                            </span>
+                            {selected ? (
+                              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-purple-400">
+                                <FiCheck className="h-4 w-4" />
+                              </span>
+                            ) : null}
+                          </>
+                        )}
+                      </Listbox.Option>
+                    ))}
+                  </Listbox.Options>
+                </Transition>
+              </div>
+            </Listbox>
+
             {submit && !formData.category && (
               <span className="mt-1 block text-xs text-red-400">
                 Vui lòng chọn loại tài liệu
@@ -141,7 +216,7 @@ const Step2FileCard = ({
                 }`}
                 placeholder="Nhập tên tài liệu..."
                 onChange={(e) =>
-                  updateForm(index, e.target.name, e.target.value)
+                  updateForm(e.target.name, e.target.value)
                 }
               />
             </div>
@@ -163,7 +238,7 @@ const Step2FileCard = ({
               rows="2"
               className="w-full resize-none rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm text-white placeholder-gray-500 transition-all outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-400"
               placeholder="Tóm tắt ngắn gọn nội dung tài liệu này (không bắt buộc)..."
-              onChange={(e) => updateForm(index, e.target.name, e.target.value)}
+              onChange={(e) => updateForm(e.target.name, e.target.value)}
             />
           </div>
 
@@ -210,7 +285,7 @@ const Step2FileCard = ({
                       }`}
                       placeholder="VD: 0.01"
                       onChange={(e) =>
-                        updateForm(index, e.target.name, e.target.value)
+                        updateForm(e.target.name, e.target.value)
                       }
                     />
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
@@ -241,9 +316,12 @@ const Step2FileCard = ({
                       step="1"
                       className="w-full rounded-lg border border-white/20 bg-white/5 py-2.5 pr-12 pl-4 text-sm text-white transition-colors outline-none focus:border-purple-400 focus:bg-white/10 focus:ring-2 focus:ring-purple-400"
                       placeholder="VD: 10"
-                      onChange={(e) =>
-                        updateForm(index, e.target.name, e.target.value)
-                      }
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        if (raw === "") { updateForm(e.target.name, ""); return; }
+                        const val = Math.min(Math.max(parseInt(raw) || 0, 0), 50);
+                        updateForm(e.target.name, val);
+                      }}
                     />
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
                       <span className="text-xs font-bold text-purple-400">
@@ -270,7 +348,7 @@ const Step2FileCard = ({
                     className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-sm text-white transition-colors outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-400"
                     placeholder="VD: 10"
                     onChange={(e) =>
-                      updateForm(index, e.target.name, e.target.value)
+                      updateForm(e.target.name, e.target.value)
                     }
                   />
                   <p className="mt-1 text-xs text-gray-500">
