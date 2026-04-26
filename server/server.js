@@ -18,7 +18,10 @@ const subjectRoute = require("./Router/SubjectRoute");
 //cors middleware for all request
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: [
+      "http://localhost:5173",
+      "https://uit-share.vercel.app"  
+    ],
     credentials: true,
   }),
 );
